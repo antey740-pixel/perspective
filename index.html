@@ -1,0 +1,401 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <title>Конструктор: Центрированная перспектива</title>
+    <style>
+        body { margin: 0; background: #e6e3dc; color: #333; font-family: sans-serif; overflow: hidden; user-select: none; }
+        canvas { display: block; cursor: crosshair; }
+        
+        .btn-layer { 
+            position: absolute; bottom: 20px; left: 50%; transform: translateX(-50%); 
+            display: flex; gap: 8px; flex-wrap: wrap; justify-content: center; 
+            z-index: 10; 
+        }
+        button {
+            padding: 10px 15px; font-size: 12px; cursor: pointer;
+            background: #fff; border: 1px solid #ccc; color: #333;
+            border-radius: 5px; font-weight: bold; transition: 0.1s;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.05);
+        }
+        button:hover { background: #f5f5f5; }
+        button.active { background: #44aaff; border-color: #44aaff; color: white; }
+
+        .controls-panel {
+            position: absolute; bottom: 80px; left: 50%; transform: translateX(-50%);
+            background: rgba(255,255,255,0.95); padding: 12px 18px;
+            border-radius: 12px; border: 1px solid #ccc; box-shadow: 0 4px 15px rgba(0,0,0,0.1);
+            display: grid; grid-template-columns: repeat(2, auto); gap: 8px 16px;
+            font-size: 13px; z-index: 10; max-width: 560px;
+        }
+        .control-item {
+            display: flex; align-items: center; gap: 6px; white-space: nowrap;
+        }
+
+        .draw-panel { 
+            display: none; gap: 12px; align-items: center; 
+            background: rgba(255,255,255,0.95); padding: 10px 20px; 
+            border-radius: 15px; border: 1px solid #ccc; 
+            box-shadow: 0 4px 10px rgba(0,0,0,0.1); 
+            margin-bottom: 8px;
+        }
+        .color-dot { width: 18px; height: 18px; border-radius: 50%; border: 2px solid #fff; cursor: pointer; box-shadow: 0 0 0 1px #aaa; }
+        .control-group { display: flex; flex-direction: column; align-items: center; gap: 4px; font-size: 10px; color: #666; }
+        input[type=range] { cursor: pointer; width: 80px; }
+    </style>
+</head>
+<body>
+
+    <div class="btn-layer">
+        <button id="btnLines" onclick="toggleLines()" class="active">Сетка: ВКЛ</button>
+        <button id="btnDrawMode" onclick="toggleDrawMode()">РИСОВАТЬ</button>
+        <button onclick="clearSketch()" style="background: #dc3545; color: white; border: none;">Очистить</button>
+        <button onclick="toggleControls()" id="btnControls">Настройки чертежа</button>
+
+        <div id="drawPanel" class="draw-panel">
+            <div class="control-group">
+                <div style="display:flex; gap:5px;">
+                    <div class="color-dot" style="background: #000;" onclick="brushColor='#000'"></div>
+                    <div class="color-dot" style="background: #f00;" onclick="brushColor='#f00'"></div>
+                    <div class="color-dot" style="background: #fff;" onclick="brushColor='#fff'"></div>
+                </div>
+                <span>КИСТЬ</span>
+                <input type="range" min="1" max="20" value="3" oninput="brushSize=Number(this.value)">
+            </div>
+            <div style="width: 1px; height: 40px; background: #ddd;"></div>
+            <div class="control-group">
+                <div style="display:flex; gap:5px;">
+                    <div class="color-dot" style="background: rgba(0,0,0,0.15); border-color:#fff;" onclick="lineColor='rgba(0,0,0,0.15)'"></div>
+                    <div class="color-dot" style="background: #007bff;" onclick="lineColor='#007bff'"></div>
+                    <div class="color-dot" style="background: #28a745;" onclick="lineColor='#28a745'"></div>
+                </div>
+                <span>СЕТКА</span>
+                <input type="range" min="0.1" max="3" step="0.1" value="0.7" oninput="lineSize=Number(this.value)">
+            </div>
+        </div>
+    </div>
+
+    <!-- Панель управления элементами -->
+    <div id="controlsPanel" class="controls-panel" style="display: none;">
+        <div class="control-item"><input type="checkbox" id="chHorizon" checked onchange="showHorizon=this.checked; draw()"> Линия горизонта</div>
+        <div class="control-item"><input type="checkbox" id="chV" checked onchange="showVanishingPoint=this.checked; draw()"> Точка схода (V)</div>
+        
+        <div class="control-item"><input type="checkbox" id="chFront" checked onchange="showFront=this.checked; draw()"> Передняя линия</div>
+        <div class="control-item"><input type="checkbox" id="chMidFront" checked onchange="showMidFront=this.checked; draw()"> Средняя точка переднего края</div>
+        
+        <div class="control-item"><input type="checkbox" id="chToV" checked onchange="showToVanishing=this.checked; draw()"> Линии к точке схода</div>
+        <div class="control-item"><input type="checkbox" id="chBack" checked onchange="showBack=this.checked; draw()"> Задняя линия</div>
+        
+        <div class="control-item"><input type="checkbox" id="chFill" checked onchange="showFill=this.checked; draw()"> Заполнение квадрата</div>
+        <div class="control-item"><input type="checkbox" id="chVertAxis" checked onchange="showVerticalAxis=this.checked; draw()"> Вертикальная ось</div>
+        
+        <div class="control-item"><input type="checkbox" id="chHorizAxis" checked onchange="showHorizontalAxis=this.checked; draw()"> Горизонтальная ось</div>
+        <div class="control-item"><input type="checkbox" id="chDiag1" checked onchange="showDiagonal1=this.checked; draw()"> Диагональ 1</div>
+        
+        <div class="control-item"><input type="checkbox" id="chDiag2" checked onchange="showDiagonal2=this.checked; draw()"> Диагональ 2</div>
+    </div>
+
+    <canvas id="c"></canvas>
+
+<script>
+const canvas = document.getElementById('c');
+const ctx = canvas.getContext('2d');
+let w, h, drag = null, showLines = true;
+let isDrawing = false, isPainting = false, brushColor = '#000', brushSize = 3, sketch = [];
+let lineColor = 'rgba(0,0,0,0.15)', lineSize = 0.7;
+
+// === Настройки видимости ===
+let showHorizon = true;
+let showVanishingPoint = true;
+let showFront = true;
+let showMidFront = true;
+let showToVanishing = true;
+let showBack = true;
+let showFill = true;
+let showVerticalAxis = true;
+let showHorizontalAxis = true;
+let showDiagonal1 = true;
+let showDiagonal2 = true;
+
+const v = { x: 0, y: 0, c: '#f44' };
+const square = { a: {x: 0, y: 0}, b: {x: 0, y: 0}, color: '#222222' };
+
+function init() {
+    w = canvas.width = window.innerWidth;
+    h = canvas.height = window.innerHeight;
+    v.y = h * 0.4;
+   
+    if (square.a.x === 0) {
+        square.a.x = w / 2 - 80;
+        square.a.y = v.y + 160;
+        square.b.x = w / 2 + 80;
+        square.b.y = v.y + 160;
+    }
+   
+    v.x = square.a.x + (square.b.x - square.a.x) / 2;
+    draw();
+}
+
+function toggleControls() {
+    const panel = document.getElementById('controlsPanel');
+    panel.style.display = panel.style.display === 'none' ? 'grid' : 'none';
+}
+
+function toggleDrawMode() {
+    isDrawing = !isDrawing;
+    const btn = document.getElementById('btnDrawMode');
+    const panel = document.getElementById('drawPanel');
+    
+    if (isDrawing) {
+        btn.classList.add('active');
+        panel.style.display = 'flex';
+    } else {
+        btn.classList.remove('active');
+        panel.style.display = 'none';
+        isPainting = false;
+    }
+    draw();
+}
+
+function toggleLines() { 
+    showLines = !showLines; 
+    document.getElementById('btnLines').classList.toggle('active'); 
+    draw(); 
+}
+
+function clearSketch() { 
+    sketch = []; 
+    draw(); 
+}
+
+function intersect(p1, p2, p3, p4) {
+    const denom = (p4.y - p3.y) * (p2.x - p1.x) - (p4.x - p3.x) * (p2.y - p1.y);
+    if (Math.abs(denom) < 0.0001) return null;
+    const ua = ((p4.x - p3.x) * (p1.y - p3.y) - (p4.y - p3.y) * (p1.x - p3.x)) / denom;
+    return { x: p1.x + ua * (p2.x - p1.x), y: p1.y + ua * (p2.y - p1.y) };
+}
+
+function intersectX(p1, p2, tx) {
+    if (Math.abs(p2.x - p1.x) < 0.0001) return null;
+    const t = (tx - p1.x) / (p2.x - p1.x);
+    return { x: tx, y: p1.y + t * (p2.y - p1.y) };
+}
+
+function intersectY(p1, p2, ty) {
+    if (Math.abs(p2.y - p1.y) < 0.0001) return null;
+    const t = (ty - p1.y) / (p2.y - p1.y);
+    return { x: p1.x + t * (p2.x - p1.x), y: ty };
+}
+
+function drawExtendedLine(p1, p2, ext) {
+    const len = Math.hypot(p2.x - p1.x, p2.y - p1.y);
+    if (len === 0) return;
+    const dx = (p2.x - p1.x) / len;
+    const dy = (p2.y - p1.y) / len;
+    ctx.beginPath();
+    ctx.moveTo(p1.x - dx * ext, p1.y - dy * ext);
+    ctx.lineTo(p2.x + dx * ext, p2.y + dy * ext);
+    ctx.stroke();
+}
+
+function draw() {
+    ctx.clearRect(0, 0, w, h);
+
+    const dist = 400;
+    const d1 = { x: v.x - dist, y: v.y };
+    const d2 = { x: v.x + dist, y: v.y };
+    const c_far = intersect(square.a, v, square.b, d1);
+    const d_far = intersect(square.b, v, square.a, d2);
+
+    if (!c_far || !d_far) return;
+
+    const midFront = { 
+        x: (square.a.x + square.b.x) / 2, 
+        y: (square.a.y + square.b.y) / 2 
+    };
+
+    if (showFill) {
+        ctx.fillStyle = 'rgba(0, 0, 0, 0.06)';
+        ctx.beginPath();
+        ctx.moveTo(square.a.x, square.a.y);
+        ctx.lineTo(square.b.x, square.b.y);
+        ctx.lineTo(d_far.x, d_far.y);
+        ctx.lineTo(c_far.x, c_far.y);
+        ctx.closePath();
+        ctx.fill();
+    }
+
+    ctx.lineWidth = 2; 
+    ctx.strokeStyle = square.color;
+
+    if (showFront) {
+        ctx.beginPath();
+        ctx.moveTo(square.a.x, square.a.y);
+        ctx.lineTo(square.b.x, square.b.y);
+        ctx.stroke();
+    }
+
+    if (showBack) {
+        ctx.beginPath();
+        ctx.moveTo(c_far.x, c_far.y);
+        ctx.lineTo(d_far.x, d_far.y);
+        ctx.stroke();
+    }
+
+    if (showToVanishing) {
+        ctx.lineWidth = 1.5;
+        ctx.beginPath(); ctx.moveTo(square.a.x, square.a.y); ctx.lineTo(v.x, v.y); ctx.stroke();
+        ctx.beginPath(); ctx.moveTo(square.b.x, square.b.y); ctx.lineTo(v.x, v.y); ctx.stroke();
+    }
+
+    ctx.lineWidth = 1; 
+    ctx.strokeStyle = square.color;
+
+    if (showVerticalAxis) {
+        drawExtendedLine(midFront, v, 30);
+    }
+
+    if (showHorizontalAxis) {
+        const center = intersectX(square.a, d_far, v.x);
+        if (center) {
+            const left_pt = intersectY(square.a, c_far, center.y);
+            const right_pt = intersectY(square.b, d_far, center.y);
+            if (left_pt && right_pt) {
+                drawExtendedLine(left_pt, right_pt, 20);
+            }
+        }
+    }
+
+    if (showDiagonal1) drawExtendedLine(square.a, d_far, 20);
+    if (showDiagonal2) drawExtendedLine(square.b, c_far, 20);
+
+    if (showHorizon) {
+        ctx.strokeStyle = '#f44'; 
+        ctx.lineWidth = lineSize;
+        ctx.beginPath(); 
+        ctx.moveTo(0, v.y); 
+        ctx.lineTo(w, v.y); 
+        ctx.stroke();
+    }
+
+    if (showVanishingPoint) {
+        ctx.beginPath();
+        ctx.arc(v.x, v.y, 7, 0, Math.PI * 2);
+        ctx.fillStyle = v.c;
+        ctx.fill();
+    }
+
+    if (showMidFront) {
+        ctx.beginPath();
+        ctx.arc(midFront.x, midFront.y, 7, 0, Math.PI * 2);
+        ctx.fillStyle = '#4af';
+        ctx.fill();
+        ctx.strokeStyle = '#fff';
+        ctx.lineWidth = 2.5;
+        ctx.stroke();
+    }
+
+    if (sketch.length) {
+        ctx.lineJoin = 'round'; ctx.lineCap = 'round';
+        sketch.forEach(l => {
+            if (l.p.length < 2) return;
+            ctx.beginPath();
+            ctx.strokeStyle = l.c;
+            ctx.lineWidth = l.s;
+            ctx.moveTo(l.p[0].x, l.p[0].y);
+            for (let i = 1; i < l.p.length; i++) {
+                ctx.lineTo(l.p[i].x, l.p[i].y);
+            }
+            ctx.stroke();
+        });
+    }
+
+    if (!isDrawing) {
+        [square.a, square.b].forEach(p => {
+            ctx.beginPath(); 
+            ctx.arc(p.x, p.y, 5, 0, Math.PI * 2);
+            ctx.fillStyle = '#4af'; 
+            ctx.fill();
+        });
+    }
+}
+
+window.onmousedown = e => {
+    const m = { x: e.clientX, y: e.clientY };
+    
+    if (isDrawing) {
+        isPainting = true;
+        sketch.push({ c: brushColor, s: brushSize, p: [m] });
+        return;
+    }
+
+    const midFront = { x: (square.a.x + square.b.x) / 2, y: (square.a.y + square.b.y) / 2 };
+
+    // Перетаскивание средней точки
+    if (showMidFront && Math.hypot(midFront.x - m.x, midFront.y - m.y) < 18) {
+        drag = { type: 'midFront' };
+        return;
+    }
+
+    if (Math.hypot(v.x - m.x, v.y - m.y) < 20) { 
+        drag = { type: 'v' }; 
+        return; 
+    }
+    if (Math.hypot(square.a.x - m.x, square.a.y - m.y) < 15) drag = {pt: square.a, type: 'a'};
+    if (Math.hypot(square.b.x - m.x, square.b.y - m.y) < 15) drag = {pt: square.b, type: 'b'};
+};
+
+window.onmousemove = e => {
+    const m = { x: e.clientX, y: e.clientY };
+    
+    if (isPainting && sketch.length > 0) {
+        sketch[sketch.length - 1].p.push(m);
+        draw();
+        return;
+    }
+
+    if (!drag) return;
+
+    if (drag.type === 'midFront') {
+        const dx = m.x - (square.a.x + square.b.x) / 2;
+        const dy = m.y - (square.a.y + square.b.y) / 2;
+        
+        square.a.x += dx;
+        square.a.y += dy;
+        square.b.x += dx;
+        square.b.y += dy;   // сохраняем горизонтальность переднего края
+        
+        v.x = (square.a.x + square.b.x) / 2;
+    }
+    else if (drag.type === 'v') {
+        v.y = m.y;
+    }
+    else if (drag.type === 'a') {
+        const dx = m.x - drag.pt.x;
+        const dy = m.y - drag.pt.y;
+        drag.pt.x = m.x;
+        drag.pt.y = m.y;
+        square.b.x += dx;
+        square.b.y += dy;
+        v.x = drag.pt.x + (square.b.x - drag.pt.x) / 2;
+    }
+    else if (drag.type === 'b') {
+        drag.pt.x = m.x;
+        drag.pt.y = square.a.y;
+        v.x = square.a.x + (drag.pt.x - square.a.x) / 2;
+    }
+    
+    draw();
+};
+
+window.onmouseup = () => { 
+    drag = null; 
+    isPainting = false; 
+};
+
+window.oncontextmenu = e => e.preventDefault();
+window.onresize = init;
+init();
+</script>
+</body>
+</html>
