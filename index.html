@@ -3,106 +3,72 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Интерактивная перспектива</title>
+    <title>Академия Перспективы</title>
     <style>
         body {
-            margin: 0;
-            font-family: 'Segoe UI', system-ui, sans-serif;
-            background: #f0f2f5;
-            color: #1a1a1b;
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-            padding: 40px 20px;
+            margin: 0; font-family: 'Segoe UI', system-ui, sans-serif;
+            background: #f0f2f5; color: #1a1a1b;
+            display: flex; flex-direction: column; align-items: center; padding: 40px 20px;
         }
         h1 { margin-bottom: 10px; color: #222; }
         p.subtitle { margin-bottom: 40px; color: #666; font-size: 18px; }
-        
         .grid {
-            display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
-            gap: 25px;
-            max-width: 1000px;
-            width: 100%;
+            display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+            gap: 25px; max-width: 1000px; width: 100%;
         }
-        
         .card {
-            background: white;
-            border-radius: 20px;
-            padding: 30px;
-            box-shadow: 0 4px 15px rgba(0,0,0,0.05);
-            transition: all 0.2s ease;
-            text-decoration: none;
-            color: inherit;
-            display: flex;
-            flex-direction: column;
-            border: 2px solid transparent;
-            position: relative;
+            background: white; border-radius: 20px; padding: 30px;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.05); transition: all 0.2s ease;
+            text-decoration: none; color: inherit; display: flex;
+            flex-direction: column; border: 2px solid transparent; position: relative;
             overflow: hidden;
         }
-        
         .card:hover {
-            transform: translateY(-5px);
-            box-shadow: 0 12px 30px rgba(0,0,0,0.1);
-            border-color: #0066ff;
+            transform: translateY(-5px); box-shadow: 0 12px 30px rgba(0,0,0,0.1); border-color: #0066ff;
         }
-        
-        .card h3 { margin: 0 0 12px 0; font-size: 22px; color: #111; }
-        .card p { margin: 0 0 20px 0; color: #555; line-height: 1.6; font-size: 15px; }
-        
+        .card h3 { margin: 0 0 12px 0; font-size: 22px; color: #111; z-index: 1; }
+        .card p { margin: 0 0 20px 0; color: #555; line-height: 1.6; font-size: 15px; z-index: 1; }
         .badge {
-            display: inline-block;
-            padding: 5px 12px;
-            border-radius: 12px;
-            font-size: 11px;
-            font-weight: 800;
-            text-transform: uppercase;
-            align-self: flex-start;
-            margin-bottom: 15px;
-            letter-spacing: 0.5px;
+            display: inline-block; padding: 5px 12px; border-radius: 12px;
+            font-size: 11px; font-weight: 800; text-transform: uppercase;
+            align-self: flex-start; margin-bottom: 15px; letter-spacing: 0.5px; z-index: 1;
         }
-        
         .status-ready { background: #e6f0ff; color: #0066ff; }
-        .status-soon { background: #f0f0f0; color: #999; }
-
         .card-icon {
-            position: absolute;
-            right: -10px;
-            bottom: -10px;
-            font-size: 80px;
-            opacity: 0.05;
-            transform: rotate(-15deg);
+            position: absolute; right: -10px; bottom: -10px;
+            font-size: 100px; opacity: 0.04; transform: rotate(-15deg);
+            user-select: none; pointer-events: none;
         }
     </style>
 </head>
 <body>
 
-    <h1>Конструктор перспективы</h1>
-    <p class="subtitle">Интерактивные упражнения по начертательной геометрии</p>
+    <h1>Академия Перспективы</h1>
+    <p class="subtitle">Интерактивный курс начертательной геометрии</p>
 
     <div class="grid">
-        <!-- Задание 1 -->
+        <!-- Урок 1 -->
         <a href="01_square_1.html" class="card">
-            <span class="badge status-ready">Задание 01</span>
+            <span class="badge status-ready">Урок 01</span>
             <div class="card-icon">◻️</div>
-            <h3>Квадрат в 1-точечной перспективе</h3>
-            <p>Научитесь строить идеальный квадрат на плоскости, управлять его глубиной и находить перспективный центр.</p>
+            <h3>Квадрат</h3>
+            <p>Базовое построение плоскости, управление горизонтом и глубиной.</p>
         </a>
 
-        <!-- Задание 2 -->
-        <a href="#" class="card" style="cursor: default; opacity: 0.8;">
-            <span class="badge status-soon">В разработке</span>
+        <!-- Урок 2 -->
+        <a href="02_ellipse_1.html" class="card">
+            <span class="badge status-ready">Урок 02</span>
             <div class="card-icon">⚪</div>
-            <h3>Эллипс и Цилиндр</h3>
-            <p>Правила вписывания окружности в перспективный квадрат и построение тел вращения.</p>
+            <h3>Круг (Эллипс)</h3>
+            <p>Вписывание идеальной окружности в перспективный квадрат.</p>
         </a>
 
-        <!-- Задание 3 -->
-        <a href="#" class="card" style="cursor: default; opacity: 0.8;">
-            <span class="badge status-soon">В разработке</span>
-            <div class="card-icon">📦</div>
-            <h3>Куб (2-точечная перспектива)</h3>
-            <p>Построение объемных тел с использованием двух точек схода на линии горизонта.</p>
+        <!-- Урок 3 -->
+        <a href="03_cilinder_1.html" class="card">
+            <span class="badge status-ready">Урок 03</span>
+            <div class="card-icon">🛢️</div>
+            <h3>Цилиндр</h3>
+            <p>Связь двух плоскостей, вертикальные стенки и свободная точка схода.</p>
         </a>
     </div>
 
