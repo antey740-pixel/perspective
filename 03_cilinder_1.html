@@ -2,7 +2,7 @@
 <html lang="ru">
 <head>
     <meta charset="UTF-8">
-    <title>03 - Цилиндр (Полный чертеж)</title>
+    <title>03 - Цилиндр (Технический чертеж)</title>
     <style>
         body { margin: 0; background: #f4f5f7; color: #333; font-family: 'Segoe UI', system-ui, sans-serif; overflow: hidden; user-select: none; }
         canvas { display: block; }
@@ -11,12 +11,23 @@
         button:hover { background: #e8e9ed; }
         button.active { background: #0066ff; color: white; border-color: #0066ff; }
         .btn-back { background: #222 !important; color: white !important; border: none !important; }
-        .controls-panel { position: absolute; bottom: 85px; left: 50%; transform: translateX(-50%); background: #f4f5f7; border: 2px solid #a5a5a5; border-radius: 16px; padding: 16px 20px; display: none; grid-template-columns: 1fr 1fr; gap: 12px 20px; font-size: 13.5px; z-index: 110; box-shadow: 0 8px 25px rgba(0,0,0,0.15); min-width: 440px; }
+        
+        .controls-panel { 
+            position: absolute; bottom: 85px; left: 50%; transform: translateX(-50%); 
+            background: #f4f5f7; border: 2px solid #a5a5a5; border-radius: 16px; 
+            padding: 20px; display: none; flex-direction: column; gap: 15px;
+            font-size: 13px; z-index: 110; box-shadow: 0 8px 25px rgba(0,0,0,0.15); 
+            min-width: 650px; max-height: 85vh; overflow-y: auto;
+        }
+        .controls-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 25px; border-top: 1px solid #ccc; padding-top: 15px; }
+        .column-title { font-weight: bold; color: #0066ff; margin-bottom: 8px; text-transform: uppercase; font-size: 11px; letter-spacing: 0.5px; }
+        .common-controls { display: flex; gap: 15px; flex-wrap: wrap; justify-content: center; margin-bottom: 5px; font-weight: 600; }
+        
         .draw-panel { position: absolute; bottom: 110px; left: 50%; transform: translateX(-50%); background: #f4f5f7; border: 2px solid #a5a5a5; border-radius: 16px; padding: 12px 20px; display: none; gap: 20px; align-items: center; box-shadow: 0 8px 25px rgba(0,0,0,0.15); z-index: 90; }
         .control-group { display: flex; flex-direction: column; align-items: center; gap: 6px; font-size: 12px; color: #555; }
         .color-dot { width: 26px; height: 26px; border-radius: 50%; border: 3px solid #a5a5a5; cursor: pointer; }
-        .control-item { display: flex; align-items: center; gap: 8px; white-space: nowrap; }
-        input[type="checkbox"] { width: 18px; height: 18px; accent-color: #0066ff; cursor: pointer; }
+        .control-item { display: flex; align-items: center; gap: 8px; white-space: nowrap; margin-bottom: 4px; }
+        input[type="checkbox"] { width: 16px; height: 16px; accent-color: #0066ff; cursor: pointer; }
     </style>
 </head>
 <body>
@@ -44,19 +55,46 @@
     </div>
 
     <div id="controlsPanel" class="controls-panel">
-        <div class="control-item"><b>Высота:</b> <input type="range" min="0" max="700" value="280" id="hRange" oninput="cylHeight=Number(this.value); draw()"></div>
-        <div class="control-item"><input type="checkbox" id="chCylSides" checked onchange="showCylSides=this.checked; draw()"> <b>Стенки цилиндра</b></div>
-        <div class="control-item"><input type="checkbox" id="chEllipse" checked onchange="showEllipse=this.checked; draw()"> Эллипсы</div>
-        <div class="control-item"><input type="checkbox" id="chHorizon" checked onchange="showHorizon=this.checked; draw()"> Линия горизонта</div>
-        <div class="control-item"><input type="checkbox" id="chFill" checked onchange="showFill=this.checked; draw()"> Заполнение плоскостей</div>
-        <div class="control-item"><input type="checkbox" id="chFront" checked onchange="showFront=this.checked; draw()"> Передние стороны</div>
-        <div class="control-item"><input type="checkbox" id="chBack" checked onchange="showBack=this.checked; draw()"> Задние стороны</div>
-        <div class="control-item"><input type="checkbox" id="chSides" checked onchange="showSides=this.checked; draw()"> Боковые стороны</div>
-        <div class="control-item"><input type="checkbox" id="chToV" checked onchange="showToVanishing=this.checked; draw()"> Линии к точке V</div>
-        <div class="control-item"><input type="checkbox" id="chHorizAxis" checked onchange="showHorizontalAxis=this.checked; draw()"> Горизонтальные оси</div>
-        <div class="control-item"><input type="checkbox" id="chVertAxis" checked onchange="showVerticalAxis=this.checked; draw()"> Вертикальная ось</div>
-        <div class="control-item"><input type="checkbox" id="chDiag1" checked onchange="showDiagonal1=this.checked; draw()"> Диагональ 1</div>
-        <div class="control-item"><input type="checkbox" id="chDiag2" checked onchange="showDiagonal2=this.checked; draw()"> Диагональ 2</div>
+        <div class="common-controls">
+            <div class="control-item"><input type="checkbox" checked onchange="cfg.cylSides=this.checked; draw()"> Стенки цилиндра</div>
+            <div class="control-item"><input type="checkbox" checked onchange="cfg.horizon=this.checked; draw()"> Линия горизонта</div>
+            <div class="control-item"><input type="checkbox" checked onchange="cfg.vanishing=this.checked; draw()"> Точка схода</div>
+            <!-- Связи по умолчанию выключены (нет атрибута checked) -->
+            <div class="control-item"><input type="checkbox" onchange="cfg.frontConn=this.checked; draw()"> Связи передние</div>
+            <div class="control-item"><input type="checkbox" onchange="cfg.backConn=this.checked; draw()"> Связи задние</div>
+        </div>
+
+        <div class="controls-grid">
+            <div>
+                <div class="column-title">Нижний квадрат (B)</div>
+                <div class="control-item"><input type="checkbox" checked onchange="cfg.B.points=this.checked; draw()"> <b>Точки управления</b></div>
+                <div class="control-item"><input type="checkbox" checked onchange="cfg.B.ellipse=this.checked; draw()"> Эллипс</div>
+                <div class="control-item"><input type="checkbox" checked onchange="cfg.B.fill=this.checked; draw()"> Заполнение</div>
+                <div class="control-item"><input type="checkbox" checked onchange="cfg.B.vertAxis=this.checked; draw()"> Вертикальная ось</div>
+                <div class="control-item"><input type="checkbox" checked onchange="cfg.B.horAxis=this.checked; draw()"> Горизонтальная ось</div>
+                <div class="control-item"><input type="checkbox" checked onchange="cfg.B.front=this.checked; draw()"> Передняя сторона</div>
+                <div class="control-item"><input type="checkbox" checked onchange="cfg.B.back=this.checked; draw()"> Задняя сторона</div>
+                <div class="control-item"><input type="checkbox" checked onchange="cfg.B.sides=this.checked; draw()"> Боковые стороны</div>
+                <div class="control-item"><input type="checkbox" checked onchange="cfg.B.toV=this.checked; draw()"> Линии к точке схода</div>
+                <div class="control-item"><input type="checkbox" checked onchange="cfg.B.diag1=this.checked; draw()"> Диагональ 1</div>
+                <div class="control-item"><input type="checkbox" checked onchange="cfg.B.diag2=this.checked; draw()"> Диагональ 2</div>
+            </div>
+
+            <div>
+                <div class="column-title">Верхний квадрат (T)</div>
+                <div class="control-item"><input type="checkbox" checked onchange="cfg.T.points=this.checked; draw()"> <b>Точки управления</b></div>
+                <div class="control-item"><input type="checkbox" checked onchange="cfg.T.ellipse=this.checked; draw()"> Эллипс</div>
+                <div class="control-item"><input type="checkbox" checked onchange="cfg.T.fill=this.checked; draw()"> Заполнение</div>
+                <div class="control-item"><input type="checkbox" checked onchange="cfg.T.vertAxis=this.checked; draw()"> Вертикальная ось</div>
+                <div class="control-item"><input type="checkbox" checked onchange="cfg.T.horAxis=this.checked; draw()"> Горизонтальная ось</div>
+                <div class="control-item"><input type="checkbox" checked onchange="cfg.T.front=this.checked; draw()"> Передняя сторона</div>
+                <div class="control-item"><input type="checkbox" checked onchange="cfg.T.back=this.checked; draw()"> Задняя сторона</div>
+                <div class="control-item"><input type="checkbox" checked onchange="cfg.T.sides=this.checked; draw()"> Боковые стороны</div>
+                <div class="control-item"><input type="checkbox" checked onchange="cfg.T.toV=this.checked; draw()"> Линии к точке схода</div>
+                <div class="control-item"><input type="checkbox" checked onchange="cfg.T.diag1=this.checked; draw()"> Диагональ 1</div>
+                <div class="control-item"><input type="checkbox" checked onchange="cfg.T.diag2=this.checked; draw()"> Диагональ 2</div>
+            </div>
+        </div>
     </div>
 
     <canvas id="c"></canvas>
@@ -66,10 +104,15 @@ const canvas = document.getElementById('c'), ctx = canvas.getContext('2d');
 let w, h, drag = null, dragOffsetX = 0, dragOffsetY = 0;
 let isDrawing = false, isPainting = false, brushColor = '#222', brushSize = 5, sketch = [];
 
-let dist = 450, cylHeight = 280;
-let showCylSides = true, showEllipse = true, showHorizon = true, showFront = true, showBack = true, showSides = true;
-let showToVanishing = true, showFill = true, showVerticalAxis = true, showHorizontalAxis = true, showDiagonal1 = true, showDiagonal2 = true;
+const cfg = {
+    horizon: true, vanishing: true, cylSides: true, 
+    frontConn: false, // Выключено по умолчанию
+    backConn: false,  // Выключено по умолчанию
+    B: { points: true, ellipse: true, fill: true, vertAxis: true, horAxis: true, front: true, back: true, sides: true, toV: true, diag1: true, diag2: true },
+    T: { points: true, ellipse: true, fill: true, vertAxis: true, horAxis: true, front: true, back: true, sides: true, toV: true, diag1: true, diag2: true }
+};
 
+let dist = 450, cylHeight = 280;
 const v = { x: 0, y: 0 };
 const base = { a: {x: 0, y: 0}, b: {x: 0, y: 0} };
 
@@ -84,7 +127,7 @@ function init() {
     draw();
 }
 
-function toggleControls() { const p = document.getElementById('controlsPanel'); p.style.display = (p.style.display === 'none' || p.style.display === '') ? 'grid' : 'none'; }
+function toggleControls() { const p = document.getElementById('controlsPanel'); p.style.display = (p.style.display === 'none' || p.style.display === '') ? 'flex' : 'none'; }
 function toggleDrawMode() { isDrawing = !isDrawing; document.getElementById('btnDrawMode').classList.toggle('active', isDrawing); document.getElementById('drawPanel').style.display = isDrawing ? 'flex' : 'none'; draw(); }
 function clearSketch() { sketch = []; draw(); }
 
@@ -110,77 +153,94 @@ function getEllParams(s) {
     return { ex: v.x, ey, rx, ry };
 }
 
-function drawExtendedLine(p1, p2, ext) {
+function drawExt(p1, p2, ext1, ext2) {
     const dx = p2.x - p1.x, dy = p2.y - p1.y, len = Math.hypot(dx, dy);
     if (len === 0) return;
     ctx.beginPath();
-    ctx.moveTo(p1.x - (dx/len)*ext, p1.y - (dy/len)*ext);
-    ctx.lineTo(p2.x + (dx/len)*ext, p2.y + (dy/len)*ext);
+    ctx.moveTo(p1.x - (dx/len)*ext1, p1.y - (dy/len)*ext1);
+    ctx.lineTo(p2.x + (dx/len)*ext2, p2.y + (dy/len)*ext2);
     ctx.stroke();
+}
+
+function getSideAxisPoints(s) {
+    const pc = intersect(s.a, s.d, s.b, s.c);
+    if (!pc) return null;
+    const xLeft = v.x + (s.a.x - v.x) * (pc.y - v.y) / (s.a.y - v.y);
+    const xRight = v.x + (s.b.x - v.x) * (pc.y - v.y) / (s.b.y - v.y);
+    return { left: { x: xLeft, y: pc.y }, right: { x: xRight, y: pc.y } };
 }
 
 function draw() {
     ctx.clearRect(0, 0, w, h); ctx.setLineDash([]);
     const sqB = getSq(base.a.y), sqT = getSq(base.a.y - cylHeight);
     if (!sqB.c || !sqT.c) return;
-    const ellB = getEllParams(sqB), ellT = getEllParams(sqT);
+    
+    // 1. Заполнение плоскостей
+    if (cfg.B.fill) { ctx.fillStyle = 'rgba(0, 80, 180, 0.04)'; ctx.beginPath(); ctx.moveTo(sqB.a.x, sqB.a.y); ctx.lineTo(sqB.b.x, sqB.b.y); ctx.lineTo(sqB.d.x, sqB.d.y); ctx.lineTo(sqB.c.x, sqB.c.y); ctx.fill(); }
+    if (cfg.T.fill) { ctx.fillStyle = 'rgba(0, 80, 180, 0.04)'; ctx.beginPath(); ctx.moveTo(sqT.a.x, sqT.a.y); ctx.lineTo(sqT.b.x, sqT.b.y); ctx.lineTo(sqT.d.x, sqT.d.y); ctx.lineTo(sqT.c.x, sqT.c.y); ctx.fill(); }
 
-    if (showFill) {
-        ctx.fillStyle = 'rgba(0, 80, 180, 0.04)';
-        [sqB, sqT].forEach(s => { ctx.beginPath(); ctx.moveTo(s.a.x, s.a.y); ctx.lineTo(s.b.x, s.b.y); ctx.lineTo(s.d.x, s.d.y); ctx.lineTo(s.c.x, s.c.y); ctx.fill(); });
+    // 2. Вертикальные связи (Цвет как у линий перспективы #0066ff)
+    ctx.lineWidth = 0.8; ctx.strokeStyle = '#0066ff';
+    if (cfg.frontConn) {
+        ctx.beginPath(); ctx.moveTo(sqB.a.x, sqB.a.y); ctx.lineTo(sqT.a.x, sqT.a.y); ctx.stroke();
+        ctx.beginPath(); ctx.moveTo(sqB.b.x, sqB.b.y); ctx.lineTo(sqT.b.x, sqT.b.y); ctx.stroke();
+    }
+    if (cfg.backConn) {
+        ctx.beginPath(); ctx.moveTo(sqB.c.x, sqB.c.y); ctx.lineTo(sqT.c.x, sqT.c.y); ctx.stroke();
+        ctx.beginPath(); ctx.moveTo(sqB.d.x, sqB.d.y); ctx.lineTo(sqT.d.x, sqT.d.y); ctx.stroke();
     }
 
-    if (showEllipse) {
-        ctx.lineWidth = 3; ctx.strokeStyle = '#0066ff';
-        [ellB, ellT].forEach(e => { ctx.beginPath(); ctx.ellipse(e.ex, e.ey, e.rx, e.ry, 0, 0, Math.PI * 2); ctx.stroke(); ctx.fillStyle = 'rgba(0,102,255,0.06)'; ctx.fill(); });
-    }
+    // 3. Эллипсы
+    ctx.lineWidth = 3; ctx.strokeStyle = '#0066ff';
+    if (cfg.B.ellipse) { let e = getEllParams(sqB); ctx.beginPath(); ctx.ellipse(e.ex, e.ey, e.rx, e.ry, 0, 0, Math.PI * 2); ctx.stroke(); ctx.fillStyle = 'rgba(0,102,255,0.06)'; ctx.fill(); }
+    if (cfg.T.ellipse) { let e = getEllParams(sqT); ctx.beginPath(); ctx.ellipse(e.ex, e.ey, e.rx, e.ry, 0, 0, Math.PI * 2); ctx.stroke(); ctx.fillStyle = 'rgba(0,102,255,0.06)'; ctx.fill(); }
 
-    if (showCylSides) {
-        ctx.lineWidth = 3; ctx.strokeStyle = '#222';
-        ctx.beginPath(); ctx.moveTo(ellB.ex - ellB.rx, ellB.ey); ctx.lineTo(ellT.ex - ellT.rx, ellT.ey); ctx.moveTo(ellB.ex + ellB.rx, ellB.ey); ctx.lineTo(ellT.ex + ellT.rx, ellT.ey); ctx.stroke();
-    }
-
-    ctx.lineWidth = 2.5; ctx.strokeStyle = '#222';
-    [sqB, sqT].forEach(s => {
-        if (showFront) { ctx.beginPath(); ctx.moveTo(s.a.x, s.a.y); ctx.lineTo(s.b.x, s.b.y); ctx.stroke(); }
-        if (showBack) { ctx.beginPath(); ctx.moveTo(s.c.x, s.c.y); ctx.lineTo(s.d.x, s.d.y); ctx.stroke(); }
-        if (showSides) { ctx.beginPath(); ctx.moveTo(s.a.x, s.a.y); ctx.lineTo(s.c.x, s.c.y); ctx.stroke(); ctx.beginPath(); ctx.moveTo(s.b.x, s.b.y); ctx.lineTo(s.d.x, s.d.y); ctx.stroke(); }
-    });
-
-    if (showToVanishing) {
-        ctx.lineWidth = 1.2; ctx.strokeStyle = '#0066ff'; ctx.setLineDash([6, 6]);
-        [sqB, sqT].forEach(s => { ctx.beginPath(); ctx.moveTo(s.a.x, s.a.y); ctx.lineTo(v.x, v.y); ctx.stroke(); ctx.beginPath(); ctx.moveTo(s.b.x, s.b.y); ctx.lineTo(v.x, v.y); ctx.stroke(); });
-        ctx.setLineDash([]);
-    }
-
-    ctx.lineWidth = 1.2; ctx.strokeStyle = '#8a8a8a';
-    if (showVerticalAxis) { 
-        drawExtendedLine({x:v.x, y:sqB.a.y}, v, 40); 
-        drawExtendedLine({x:v.x, y:sqT.a.y}, v, 40); // ВОТ ЭТА ДОБАВЛЕННАЯ СТРОКА
-    }
-    [sqB, sqT].forEach(s => {
-        const pc = intersect(s.a, s.d, s.b, s.c);
-        if (showHorizontalAxis && pc) {
-            const xSide = v.x + (s.a.x - v.x) * (pc.y - v.y) / (s.a.y - v.y);
-            drawExtendedLine({x: xSide, y: pc.y}, {x: v.x + (v.x - xSide), y: pc.y}, 30);
+    // 4. Стенки цилиндра
+    if (cfg.cylSides) {
+        const ptsB = getSideAxisPoints(sqB), ptsT = getSideAxisPoints(sqT);
+        if (ptsB && ptsT) {
+            ctx.lineWidth = 3; ctx.strokeStyle = '#222';
+            ctx.beginPath(); ctx.moveTo(ptsB.left.x, ptsB.left.y); ctx.lineTo(ptsT.left.x, ptsT.left.y); 
+            ctx.moveTo(ptsB.right.x, ptsB.right.y); ctx.lineTo(ptsT.right.x, ptsT.right.y); ctx.stroke();
         }
-        if (showDiagonal1) { ctx.beginPath(); ctx.moveTo(s.a.x, s.a.y); ctx.lineTo(s.d.x, s.d.y); ctx.stroke(); }
-        if (showDiagonal2) { ctx.beginPath(); ctx.moveTo(s.b.x, s.b.y); ctx.lineTo(s.c.x, s.c.y); ctx.stroke(); }
+    }
+
+    // 5. Отрисовка геометрии квадратов
+    [[sqB, cfg.B, 15, 45], [sqT, cfg.T, 25, 25]].forEach(([s, c, vExt, vertTail]) => {
+        ctx.lineWidth = 2.5; ctx.strokeStyle = '#222';
+        if (c.front) drawExt(s.a, s.b, 0, 0);
+        if (c.back)  drawExt(s.c, s.d, 0, 0);
+        if (c.sides) { drawExt(s.a, s.c, 0, 0); drawExt(s.b, s.d, 0, 0); }
+        
+        ctx.lineWidth = 1.2; ctx.strokeStyle = '#0066ff';
+        if (c.toV) { drawExt(s.a, v, 30, vExt); drawExt(s.b, v, 30, vExt); }
+
+        ctx.strokeStyle = '#8a8a8a';
+        const pc = intersect(s.a, s.d, s.b, s.c);
+        if (c.horAxis && pc) { const pts = getSideAxisPoints(s); drawExt(pts.left, pts.right, 30, 30); }
+        if (c.vertAxis) { drawExt({x:v.x, y:s.a.y}, v, vertTail, 20); }
+        if (c.diag1) drawExt(s.a, s.d, 25, 10);
+        if (c.diag2) drawExt(s.b, s.c, 25, 10);
     });
 
-    if (showHorizon) {
+    // 6. Горизонт и Точка схода
+    if (cfg.horizon) {
         ctx.strokeStyle = '#f8ad00'; ctx.lineWidth = 2.5;
         ctx.beginPath(); ctx.moveTo(0, v.y); ctx.lineTo(w, v.y); ctx.stroke();
+    }
+    if (cfg.vanishing) {
         ctx.beginPath(); ctx.arc(v.x, v.y, 8, 0, Math.PI * 2); ctx.fillStyle = '#c33'; ctx.fill(); ctx.strokeStyle = '#fff'; ctx.lineWidth = 2; ctx.stroke();
     }
 
+    // 7. Точки управления
     if (!isDrawing) {
-        [sqB, sqT].forEach((s, i) => {
-            const isT = (i === 1);
+        const drawPts = (s, isT) => {
             [[s.a.x, s.a.y], [s.b.x, s.b.y]].forEach(p => { ctx.beginPath(); ctx.arc(p[0], p[1], 6, 0, Math.PI * 2); ctx.fillStyle = '#0066ff'; ctx.fill(); });
             ctx.beginPath(); ctx.arc(v.x, s.c.y, 8, 0, Math.PI * 2); ctx.fillStyle = '#00cc66'; ctx.fill(); ctx.strokeStyle = '#fff'; ctx.lineWidth = 2; ctx.stroke();
             ctx.beginPath(); ctx.arc(v.x, s.a.y, 8, 0, Math.PI * 2); ctx.fillStyle = isT ? '#ff9900' : '#0066ff'; ctx.fill(); ctx.strokeStyle = '#fff'; ctx.lineWidth = 2; ctx.stroke();
-        });
+        };
+        if (cfg.B.points) drawPts(sqB, false);
+        if (cfg.T.points) drawPts(sqT, true);
     }
 
     if (sketch.length) {
@@ -193,14 +253,15 @@ window.onmousedown = e => {
     const m = { x: e.clientX, y: e.clientY };
     if (isDrawing) { isPainting = true; sketch.push({ c: brushColor, s: brushSize, p: [m] }); return; }
     const sqB = getSq(base.a.y), sqT = getSq(base.a.y - cylHeight);
-
-    if (Math.hypot(v.x - m.x, v.y - m.y) < 20) { drag = { type: 'v' }; return; }
-    if (Math.hypot(v.x - m.x, sqT.a.y - m.y) < 15) { drag = { type: 'h' }; return; }
-    if (Math.hypot(v.x - m.x, sqB.a.y - m.y) < 15) { drag = { type: 'move' }; return; }
-    if (Math.hypot(v.x - m.x, sqB.c.y - m.y) < 15) { drag = { type: 'd', yF: sqB.a.y }; dragOffsetY = sqB.c.y - m.y; return; }
-    if (Math.hypot(v.x - m.x, sqT.c.y - m.y) < 15) { drag = { type: 'd', yF: sqT.a.y }; dragOffsetY = sqT.c.y - m.y; return; }
-    if (Math.hypot(base.a.x - m.x, base.a.y - m.y) < 15 || Math.hypot(base.b.x - m.x, base.b.y - m.y) < 15) { drag = { type: 'wB' }; dragOffsetY = base.a.y - m.y; return; }
-    if (Math.hypot(sqT.a.x - m.x, sqT.a.y - m.y) < 15 || Math.hypot(sqT.b.x - m.x, sqT.b.y - m.y) < 15) { drag = { type: 'wT' }; return; }
+    if (cfg.vanishing && Math.hypot(v.x - m.x, v.y - m.y) < 20) { drag = { type: 'v' }; return; }
+    const checkPts = (s, typePrefix) => {
+        if (Math.hypot(v.x - m.x, s.a.y - m.y) < 15) return { type: typePrefix === 'B' ? 'move' : 'h' };
+        if (Math.hypot(v.x - m.x, s.c.y - m.y) < 15) return { type: 'd', yF: s.a.y, off: s.c.y - m.y };
+        if (Math.hypot(s.a.x - m.x, s.a.y - m.y) < 15 || Math.hypot(s.b.x - m.x, s.b.y - m.y) < 15) return { type: typePrefix === 'B' ? 'wB' : 'wT', off: s.a.y - m.y };
+        return null;
+    };
+    if (cfg.T.points) { let res = checkPts(sqT, 'T'); if (res) { drag = res; if (res.off) dragOffsetY = res.off; return; } }
+    if (cfg.B.points) { let res = checkPts(sqB, 'B'); if (res) { drag = res; if (res.off) dragOffsetY = res.off; return; } }
 };
 
 window.onmousemove = e => {
@@ -208,7 +269,7 @@ window.onmousemove = e => {
     if (isPainting && sketch.length > 0) { sketch[sketch.length - 1].p.push(m); draw(); return; }
     if (!drag) return;
     if (drag.type === 'v') { v.y = m.y; } 
-    else if (drag.type === 'h') { cylHeight = base.a.y - m.y; document.getElementById('hRange').value = cylHeight; } 
+    else if (drag.type === 'h') { cylHeight = base.a.y - m.y; } 
     else if (drag.type === 'move') { const dx = m.x - v.x, dy = m.y - base.a.y; base.a.x += dx; base.a.y += dy; base.b.x += dx; base.b.y += dy; } 
     else if (drag.type === 'wB' || drag.type === 'wT') {
         if (drag.type === 'wB') base.a.y = base.b.y = m.y + dragOffsetY;
