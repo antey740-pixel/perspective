@@ -1,0 +1,276 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <title>02 - Круг в перспективе</title>
+    <style>
+        body {
+            margin: 0; background: #f4f5f7; color: #333;
+            font-family: 'Segoe UI', system-ui, sans-serif; overflow: hidden; user-select: none;
+        }
+        canvas { display: block; }
+        .toolbar {
+            position: absolute; bottom: 25px; left: 50%; transform: translateX(-50%);
+            background: #f4f5f7; border: 2px solid #a5a5a5; border-radius: 50px;
+            padding: 6px 10px; display: flex; gap: 6px; align-items: center;
+            box-shadow: 0 6px 16px rgba(0,0,0,0.12); z-index: 100;
+        }
+        button {
+            padding: 11px 18px; font-size: 14px; cursor: pointer; background: white;
+            border: 2px solid #a5a5a5; color: #222; border-radius: 40px;
+            font-weight: 600; transition: all 0.15s; outline: none;
+        }
+        button:hover { background: #e8e9ed; }
+        button.active { background: #0066ff; color: white; border-color: #0066ff; }
+        .btn-back { background: #222 !important; color: white !important; border: none !important; }
+        .controls-panel {
+            position: absolute; bottom: 85px; left: 50%; transform: translateX(-50%);
+            background: #f4f5f7; border: 2px solid #a5a5a5; border-radius: 16px;
+            padding: 16px 20px; display: none; grid-template-columns: 1fr 1fr;
+            gap: 12px 20px; font-size: 13.5px; z-index: 110;
+            box-shadow: 0 8px 25px rgba(0,0,0,0.15); min-width: 380px;
+        }
+        .draw-panel {
+            position: absolute; bottom: 110px; left: 50%; transform: translateX(-50%);
+            background: #f4f5f7; border: 2px solid #a5a5a5; border-radius: 16px;
+            padding: 12px 20px; display: none; gap: 20px; align-items: center;
+            box-shadow: 0 8px 25px rgba(0,0,0,0.15); z-index: 90;
+        }
+        .control-group { display: flex; flex-direction: column; align-items: center; gap: 6px; font-size: 12px; color: #555; }
+        .color-dot { width: 26px; height: 26px; border-radius: 50%; border: 3px solid #a5a5a5; cursor: pointer; }
+        .control-item { display: flex; align-items: center; gap: 8px; white-space: nowrap; }
+        input[type="checkbox"] { width: 18px; height: 18px; accent-color: #0066ff; cursor: pointer; }
+    </style>
+</head>
+<body>
+
+    <div class="toolbar">
+        <button class="btn-back" onclick="location.href='index.html'">← В МЕНЮ</button>
+        <button id="btnDrawMode" onclick="toggleDrawMode()">✏️ РИСОВАТЬ</button>
+        <button onclick="clearSketch()" style="border-color:#c33; color:#c33;">Очистить</button>
+        <button onclick="toggleControls()">⚙️ Настройки</button>
+    </div>
+
+    <div id="drawPanel" class="draw-panel">
+        <div class="control-group">
+            <div style="display:flex; gap:8px;">
+                <div class="color-dot" style="background:#222;" onclick="brushColor='#222'"></div>
+                <div class="color-dot" style="background:#0066ff;" onclick="brushColor='#0066ff'"></div>
+                <div class="color-dot" style="background:#c33;" onclick="brushColor='#c33'"></div>
+            </div>
+            <span>Цвет</span>
+        </div>
+        <div class="control-group">
+            <input type="range" min="1" max="30" value="5" oninput="brushSize=Number(this.value)">
+            <span>Толщина</span>
+        </div>
+    </div>
+
+    <div id="controlsPanel" class="controls-panel">
+        <div class="control-item"><input type="checkbox" id="chEllipse" checked onchange="showEllipse=this.checked; draw()"> <b>Показать круг</b></div>
+        <div class="control-item"><input type="checkbox" id="chFill" checked onchange="showFill=this.checked; draw()"> Заполнение</div>
+        <div class="control-item"><input type="checkbox" id="chHorizon" checked onchange="showHorizon=this.checked; draw()"> Линия горизонта</div>
+        <div class="control-item"><input type="checkbox" id="chV" checked onchange="showVanishingPoint=this.checked; draw()"> Точка схода V</div>
+        <div class="control-item"><input type="checkbox" id="chFront" checked onchange="showFront=this.checked; draw()"> Передняя сторона</div>
+        <div class="control-item"><input type="checkbox" id="chSides" checked onchange="showSides=this.checked; draw()"> Боковые стороны</div>
+        <div class="control-item"><input type="checkbox" id="chBack" checked onchange="showBack=this.checked; draw()"> Задняя сторона</div>
+        <div class="control-item"><input type="checkbox" id="chToV" checked onchange="showToVanishing=this.checked; draw()"> Линии к V</div>
+        <div class="control-item"><input type="checkbox" id="chVertAxis" checked onchange="showVerticalAxis=this.checked; draw()"> Вертикальная ось</div>
+        <div class="control-item"><input type="checkbox" id="chHorizAxis" checked onchange="showHorizontalAxis=this.checked; draw()"> Горизонтальная ось</div>
+        <div class="control-item"><input type="checkbox" id="chDiag1" checked onchange="showDiagonal1=this.checked; draw()"> Диагональ 1</div>
+        <div class="control-item"><input type="checkbox" id="chDiag2" checked onchange="showDiagonal2=this.checked; draw()"> Диагональ 2</div>
+    </div>
+
+    <canvas id="c"></canvas>
+
+<script>
+const canvas = document.getElementById('c');
+const ctx = canvas.getContext('2d');
+let w, h, drag = null, dragOffsetY = 0;
+let isDrawing = false, isPainting = false, brushColor = '#222', brushSize = 5, sketch = [];
+
+let dist = 450; 
+let showEllipse = true, showHorizon = true, showVanishingPoint = true, showFront = true, showBack = true;
+let showSides = true, showToVanishing = true, showFill = true;
+let showVerticalAxis = true, showHorizontalAxis = true, showDiagonal1 = true, showDiagonal2 = true;
+
+const v = { x: 0, y: 0 };
+const square = { a: {x: 0, y: 0}, b: {x: 0, y: 0} };
+
+function init() {
+    w = canvas.width = window.innerWidth;
+    h = canvas.height = window.innerHeight;
+    v.y = h * 0.35;
+    if (square.a.x === 0) {
+        square.a.x = w / 2 - 150; square.a.y = v.y + 250;
+        square.b.x = w / 2 + 150; square.b.y = v.y + 250;
+    }
+    v.x = (square.a.x + square.b.x) / 2;
+    draw();
+}
+
+function toggleControls() {
+    const panel = document.getElementById('controlsPanel');
+    panel.style.display = (panel.style.display === 'none' || panel.style.display === '') ? 'grid' : 'none';
+}
+
+function toggleDrawMode() {
+    isDrawing = !isDrawing;
+    document.getElementById('btnDrawMode').classList.toggle('active', isDrawing);
+    document.getElementById('drawPanel').style.display = isDrawing ? 'flex' : 'none';
+    draw();
+}
+
+function clearSketch() { sketch = []; draw(); }
+
+function intersect(p1, p2, p3, p4) {
+    const denom = (p4.y - p3.y) * (p2.x - p1.x) - (p4.x - p3.x) * (p2.y - p1.y);
+    if (Math.abs(denom) < 0.0001) return null;
+    const ua = ((p4.x - p3.x) * (p1.y - p3.y) - (p4.y - p3.y) * (p1.x - p3.x)) / denom;
+    return { x: p1.x + ua * (p2.x - p1.x), y: p1.y + ua * (p2.y - p1.y) };
+}
+
+function getSideX(y, sideA, sideV) {
+    if (Math.abs(sideV.y - sideA.y) < 0.1) return sideA.x;
+    return sideA.x + (sideV.x - sideA.x) * (y - sideA.y) / (sideV.y - sideA.y);
+}
+
+function drawExtendedLine(p1, p2, ext) {
+    const len = Math.hypot(p2.x - p1.x, p2.y - p1.y);
+    if (len === 0) return;
+    const dx = (p2.x - p1.x) / len, dy = (p2.y - p1.y) / len;
+    ctx.beginPath(); ctx.moveTo(p1.x - dx * ext, p1.y - dy * ext);
+    ctx.lineTo(p2.x + dx * ext, p2.y + dy * ext); ctx.stroke();
+}
+
+function getBackPoints() {
+    const d1 = { x: v.x - dist, y: v.y };
+    const d2 = { x: v.x + dist, y: v.y };
+    return { c: intersect(square.a, v, square.b, d1), d: intersect(square.b, v, square.a, d2) };
+}
+
+function draw() {
+    ctx.clearRect(0, 0, w, h);
+    ctx.setLineDash([]);
+    const { c: c_far, d: d_far } = getBackPoints();
+    if (!c_far || !d_far) return;
+
+    const perspCenter = intersect(square.a, d_far, square.b, c_far);
+
+    if (showFill) {
+        ctx.fillStyle = 'rgba(0, 80, 180, 0.04)';
+        ctx.beginPath(); ctx.moveTo(square.a.x, square.a.y); ctx.lineTo(square.b.x, square.b.y);
+        ctx.lineTo(d_far.x, d_far.y); ctx.lineTo(c_far.x, c_far.y); ctx.fill();
+    }
+
+    if (showEllipse) {
+        ctx.lineWidth = 4; ctx.strokeStyle = '#0066ff';
+        const yFront = square.a.y, yBack = c_far.y;
+        const ellY = (yFront + yBack) / 2;
+        const ry = Math.abs(yFront - yBack) / 2;
+        const k = Math.abs((square.a.x - v.x) / (square.a.y - v.y));
+        const rx = k * Math.sqrt(Math.abs(v.y - yFront) * Math.abs(v.y - yBack));
+        ctx.beginPath(); ctx.ellipse(v.x, ellY, rx, ry, 0, 0, Math.PI * 2);
+        ctx.stroke(); ctx.fillStyle = 'rgba(0, 102, 255, 0.1)'; ctx.fill();
+    }
+
+    ctx.lineWidth = 3; ctx.strokeStyle = '#2c2c2c';
+    if (showFront) { ctx.beginPath(); ctx.moveTo(square.a.x, square.a.y); ctx.lineTo(square.b.x, square.b.y); ctx.stroke(); }
+    if (showBack) { ctx.beginPath(); ctx.moveTo(c_far.x, c_far.y); ctx.lineTo(d_far.x, d_far.y); ctx.stroke(); }
+    if (showSides) {
+        ctx.beginPath(); ctx.moveTo(square.a.x, square.a.y); ctx.lineTo(c_far.x, c_far.y); ctx.stroke();
+        ctx.beginPath(); ctx.moveTo(square.b.x, square.b.y); ctx.lineTo(d_far.x, d_far.y); ctx.stroke();
+    }
+
+    if (showToVanishing) {
+        ctx.lineWidth = 1.5; ctx.strokeStyle = '#0066ff'; ctx.setLineDash([6, 6]);
+        ctx.beginPath(); ctx.moveTo(square.a.x, square.a.y); ctx.lineTo(v.x, v.y); ctx.stroke();
+        ctx.beginPath(); ctx.moveTo(square.b.x, square.b.y); ctx.lineTo(v.x, v.y); ctx.stroke();
+        ctx.setLineDash([]);
+    }
+
+    ctx.lineWidth = 1.5; ctx.strokeStyle = '#8a8a8a';
+    if (showVerticalAxis) drawExtendedLine({x: v.x, y: square.a.y}, v, 35);
+    if (showHorizontalAxis && perspCenter) {
+        const lx = getSideX(perspCenter.y, square.a, v);
+        const rx_axis = v.x + (v.x - lx);
+        drawExtendedLine({x: lx, y: perspCenter.y}, {x: rx_axis, y: perspCenter.y}, 25);
+    }
+    if (showDiagonal1) { ctx.beginPath(); ctx.moveTo(square.a.x, square.a.y); ctx.lineTo(d_far.x, d_far.y); ctx.stroke(); }
+    if (showDiagonal2) { ctx.beginPath(); ctx.moveTo(square.b.x, square.b.y); ctx.lineTo(c_far.x, c_far.y); ctx.stroke(); }
+
+    if (showHorizon) {
+        ctx.strokeStyle = '#f8ad00'; ctx.lineWidth = 2.5;
+        ctx.beginPath(); ctx.moveTo(0, v.y); ctx.lineTo(w, v.y); ctx.stroke();
+    }
+    if (showVanishingPoint) {
+        ctx.beginPath(); ctx.arc(v.x, v.y, 8, 0, Math.PI * 2); ctx.fillStyle = '#c33'; ctx.fill();
+    }
+
+    if (showBack) {
+        ctx.beginPath(); ctx.arc(v.x, c_far.y, 8, 0, Math.PI * 2);
+        ctx.fillStyle = '#00cc66'; ctx.fill(); ctx.strokeStyle = '#fff'; ctx.lineWidth = 3; ctx.stroke();
+    }
+    if (showMidFront = true) {
+        ctx.beginPath(); ctx.arc(v.x, square.a.y, 8, 0, Math.PI * 2);
+        ctx.fillStyle = '#0066ff'; ctx.fill(); ctx.strokeStyle = '#fff'; ctx.lineWidth = 3; ctx.stroke();
+    }
+
+    if (sketch.length) {
+        ctx.lineJoin = 'round'; ctx.lineCap = 'round';
+        sketch.forEach(l => {
+            if (l.p.length < 2) return;
+            ctx.beginPath(); ctx.strokeStyle = l.c; ctx.lineWidth = l.s;
+            ctx.moveTo(l.p[0].x, l.p[0].y);
+            for (let i = 1; i < l.p.length; i++) ctx.lineTo(l.p[i].x, l.p[i].y);
+            ctx.stroke();
+        });
+    }
+
+    if (!isDrawing) {
+        [square.a, square.b].forEach(p => {
+            ctx.beginPath(); ctx.arc(p.x, p.y, 6, 0, Math.PI * 2);
+            ctx.fillStyle = '#0066ff'; ctx.fill();
+        });
+    }
+}
+
+window.onmousedown = e => {
+    const m = { x: e.clientX, y: e.clientY };
+    if (isDrawing) { isPainting = true; sketch.push({ c: brushColor, s: brushSize, p: [m] }); return; }
+    const { c: c_far } = getBackPoints();
+    if (c_far && Math.hypot(v.x - m.x, c_far.y - m.y) < 20) { drag = { type: 'midBack' }; dragOffsetY = c_far.y - m.y; return; }
+    if (Math.hypot(v.x - m.x, square.a.y - m.y) < 20) { drag = { type: 'midFront' }; return; }
+    if (Math.hypot(square.a.x - m.x, square.a.y - m.y) < 18) { drag = { type: 'a' }; dragOffsetY = square.a.y - m.y; return; }
+    if (Math.hypot(square.b.x - m.x, square.b.y - m.y) < 18) { drag = { type: 'b' }; dragOffsetY = square.b.y - m.y; return; }
+    if (Math.hypot(v.x - m.x, v.y - m.y) < 20) { drag = { type: 'v' }; return; }
+};
+
+window.onmousemove = e => {
+    const m = { x: e.clientX, y: e.clientY };
+    if (isPainting && sketch.length > 0) { sketch[sketch.length - 1].p.push(m); draw(); return; }
+    if (!drag) return;
+    if (drag.type === 'midBack') {
+        const targetY = Math.max(v.y + 2, Math.min(square.a.y - 2, m.y + dragOffsetY));
+        const dy = targetY - square.a.y, sideDistY = v.y - square.a.y;
+        if (Math.abs(dy) > 0.1) {
+            const x_int = square.a.x + (v.x - square.a.x) * (dy / sideDistY);
+            dist = Math.abs((v.x - square.b.x) - (x_int - square.b.x) * (sideDistY / dy));
+        }
+    } else if (drag.type === 'midFront') {
+        const dx = m.x - v.x, dy = m.y - square.a.y;
+        square.a.x += dx; square.a.y += dy; square.b.x += dx; square.b.y += dy; v.x = m.x;
+    } else if (drag.type === 'a' || drag.type === 'b') {
+        const newY = m.y + dragOffsetY; square.a.y = square.b.y = newY;
+        const dx = Math.abs(m.x - v.x), newHalf = Math.max(30, dx);
+        square.a.x = v.x - newHalf; square.b.x = v.x + newHalf;
+    } else if (drag.type === 'v') { v.y = m.y; }
+    draw();
+};
+
+window.onmouseup = () => { drag = null; isPainting = false; };
+window.onresize = init;
+init();
+</script>
+</body>
+</html>

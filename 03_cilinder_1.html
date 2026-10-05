@@ -1,0 +1,910 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <title>03 - Цилиндр (Технический чертеж) — Three.js</title>
+    <style>
+        body { margin: 0; background: #f4f5f7; color: #333; font-family: 'Segoe UI', system-ui, sans-serif; overflow: hidden; user-select: none; }
+        canvas { display: block; }
+
+        /* ==== Зеркальный слой ==== */
+        #mirrorOverlay {
+            position: fixed;
+            top: 0; left: 0;
+            display: none;
+            transform: scaleY(-1);
+            transform-origin: center center;
+            mix-blend-mode: multiply;
+            pointer-events: none;
+            z-index: 50;
+            -webkit-user-drag: none;
+            image-rendering: auto;
+        }
+
+        .toolbar { position: absolute; bottom: 25px; left: 50%; transform: translateX(-50%); background: #f4f5f7; border: 2px solid #a5a5a5; border-radius: 50px; padding: 6px 10px; display: flex; gap: 6px; align-items: center; box-shadow: 0 6px 16px rgba(0,0,0,0.12); z-index: 100; }
+        button { padding: 11px 18px; font-size: 14px; cursor: pointer; background: white; border: 2px solid #a5a5a5; color: #222; border-radius: 40px; font-weight: 600; transition: all 0.15s; outline: none; }
+        button:hover { background: #e8e9ed; }
+        button.active { background: #0066ff; color: white; border-color: #0066ff; }
+        .btn-back { background: #222 !important; color: white !important; border: none !important; }
+        
+        .controls-panel { 
+            position: absolute; bottom: 85px; left: 50%; transform: translateX(-50%); 
+            background: #f4f5f7; border: 2px solid #a5a5a5; border-radius: 16px; 
+            padding: 20px; display: none; flex-direction: column; gap: 15px;
+            font-size: 13px; z-index: 110; box-shadow: 0 8px 25px rgba(0,0,0,0.15); 
+            min-width: 900px; max-width: 96vw; max-height: 85vh; overflow-y: auto;
+            cursor: grab;
+        }
+        .controls-panel.dragging { cursor: grabbing; box-shadow: 0 14px 40px rgba(0,0,0,0.25); }
+        .controls-panel input,
+        .controls-panel label,
+        .controls-panel button { cursor: pointer; }
+
+        .panel-handle {
+            display: flex; align-items: center; justify-content: center; gap: 8px;
+            margin: -10px 0 4px; padding: 4px 0 8px;
+            border-bottom: 1px dashed #ccc;
+            color: #888; font-size: 11px; font-weight: 700;
+            text-transform: uppercase; letter-spacing: 1px;
+            cursor: grab;
+        }
+        .panel-handle .grip {
+            display: inline-block; width: 42px; height: 6px;
+            border-radius: 3px; background: #bbb;
+        }
+
+        .controls-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 25px; border-top: 1px solid #ccc; padding-top: 15px; }
+        .column-title { font-weight: bold; color: #0066ff; margin-bottom: 8px; text-transform: uppercase; font-size: 11px; letter-spacing: 0.5px; }
+        .common-controls { display: flex; gap: 15px; flex-wrap: wrap; justify-content: center; margin-bottom: 5px; font-weight: 600; }
+        
+        .square-cols { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; }
+        .master-item { border-bottom: 1px solid #ccc; padding-bottom: 6px; margin-bottom: 6px; }
+        .master-item input[type="checkbox"] { width: 18px; height: 18px; }
+
+        .draw-panel { position: absolute; bottom: 110px; left: 50%; transform: translateX(-50%); background: #f4f5f7; border: 2px solid #a5a5a5; border-radius: 16px; padding: 12px 20px; display: none; gap: 20px; align-items: center; box-shadow: 0 8px 25px rgba(0,0,0,0.15); z-index: 90; }
+        .control-group { display: flex; flex-direction: column; align-items: center; gap: 6px; font-size: 12px; color: #555; }
+        .color-dot { width: 26px; height: 26px; border-radius: 50%; border: 3px solid #a5a5a5; cursor: pointer; }
+        .control-item { display: flex; align-items: center; gap: 8px; white-space: nowrap; margin-bottom: 4px; }
+        input[type="checkbox"] { width: 16px; height: 16px; accent-color: #0066ff; cursor: pointer; }
+        .red-item { color: #c33; font-weight: 700; }
+        .red-item input[type="checkbox"] { accent-color: #c33; }
+
+        /* ==== Панель управления зеркалом — теперь таскается ==== */
+        .mirror-controls {
+            position: fixed;
+            top: 20px; right: 20px;
+            background: #f4f5f7;
+            border: 2px solid #a5a5a5;
+            border-radius: 14px;
+            padding: 12px 14px;
+            display: none;
+            flex-direction: column;
+            gap: 10px;
+            font-size: 13px;
+            z-index: 120;
+            box-shadow: 0 6px 20px rgba(0,0,0,0.15);
+            min-width: 240px;
+            cursor: grab;
+        }
+        .mirror-controls.dragging { cursor: grabbing; box-shadow: 0 14px 40px rgba(0,0,0,0.28); }
+        .mirror-controls input,
+        .mirror-controls label,
+        .mirror-controls button,
+        .mirror-controls select { cursor: pointer; }
+
+        .mirror-controls .mc-header {
+            display: flex; align-items: center; justify-content: space-between;
+            font-weight: 700; color: #0066ff;
+            font-size: 12px; text-transform: uppercase; letter-spacing: 0.5px;
+            border-bottom: 1px solid #ccc;
+            padding-bottom: 6px; margin-bottom: 2px;
+            cursor: grab;
+        }
+        .mirror-controls .mc-header::before {
+            content: '⋮⋮'; color: #bbb; margin-right: 6px;
+            font-size: 14px; letter-spacing: -1px; font-weight: normal;
+        }
+        .mirror-controls .mc-close {
+            background: transparent; border: none; color: #c33;
+            font-size: 16px; padding: 0; cursor: pointer;
+            width: 22px; height: 22px; border-radius: 50%; font-weight: 700;
+        }
+        .mirror-controls .mc-close:hover { background: #fdecec; }
+        .mirror-controls .mc-row {
+            display: flex; align-items: center; justify-content: space-between; gap: 10px;
+        }
+        .mirror-controls .mc-row span { font-weight: 600; color: #555; }
+        .mirror-controls .mc-row input[type="range"] { flex: 1; accent-color: #0066ff; cursor: pointer; }
+        .mirror-controls .mc-row select {
+            padding: 4px 6px; font-size: 12px; border-radius: 6px;
+            border: 1px solid #ccc; background: white; cursor: pointer;
+        }
+        .mirror-controls .mc-actions {
+            display: flex; gap: 6px;
+            border-top: 1px solid #ccc;
+            padding-top: 8px;
+        }
+        .mirror-controls .mc-actions button {
+            flex: 1;
+            padding: 6px 8px; font-size: 12px;
+            border-radius: 20px; border: 2px solid #a5a5a5;
+            background: white; cursor: pointer; font-weight: 600;
+        }
+        .mirror-controls .mc-actions button:hover { background: #e8e9ed; }
+        .mirror-controls .mc-hint {
+            font-size: 11px; color: #888; line-height: 1.4;
+            border-top: 1px dashed #ccc;
+            padding-top: 6px;
+        }
+    </style>
+</head>
+<body>
+
+    <div class="toolbar">
+        <button class="btn-back" onclick="location.href='index.html'">← В МЕНЮ</button>
+        <button id="btnDrawMode" onclick="toggleDrawMode()">✏️ РИСОВАТЬ</button>
+        <button onclick="clearSketch()" style="border-color:#c33; color:#c33;">Очистить</button>
+        <button id="btnMirror" onclick="toggleMirror()">🔍 Зеркало</button>
+        <button onclick="toggleControls()">⚙️ Настройки</button>
+    </div>
+
+    <div id="drawPanel" class="draw-panel">
+        <div class="control-group">
+            <div style="display:flex; gap:8px;">
+                <div class="color-dot" style="background:#222;" onclick="setBrushColor('#222')"></div>
+                <div class="color-dot" style="background:#0066ff;" onclick="setBrushColor('#0066ff')"></div>
+                <div class="color-dot" style="background:#c33;" onclick="setBrushColor('#c33')"></div>
+            </div>
+            <span>Цвет</span>
+        </div>
+        <div class="control-group">
+            <input type="range" min="1" max="30" value="5" oninput="setBrushSize(Number(this.value))">
+            <span>Толщина</span>
+        </div>
+    </div>
+
+    <div id="controlsPanel" class="controls-panel">
+        <div class="panel-handle" title="Перетащите панель мышкой">
+            <span class="grip"></span> Настройки — тащить мышкой <span class="grip"></span>
+        </div>
+
+        <div class="common-controls">
+            <div class="control-item red-item"><input type="checkbox" onchange="cfg.redSides=this.checked; draw()"> Красные стенки</div>
+            <div class="control-item"><input type="checkbox" checked onchange="cfg.cylSides=this.checked; draw()"> Стенки цилиндра</div>
+            <div class="control-item"><input type="checkbox" checked onchange="cfg.horizon=this.checked; draw()"> Линия горизонта</div>
+            <div class="control-item"><input type="checkbox" checked onchange="cfg.vanishing=this.checked; draw()"> Точка схода</div>
+            <div class="control-item"><input type="checkbox" onchange="cfg.frontConn=this.checked; draw()"> Связи передние</div>
+            <div class="control-item"><input type="checkbox" onchange="cfg.backConn=this.checked; draw()"> Связи задние</div>
+        </div>
+
+        <div class="controls-grid">
+            <div class="square-block">
+                <div class="column-title">Нижний квадрат (B)</div>
+                <div class="square-cols">
+                    <div>
+                        <div class="control-item master-item">
+                            <input type="checkbox" class="master-toggle" data-master="B" checked
+                                   onchange="toggleAll('B', this.checked)"> <b>Вкл-выкл всё</b>
+                        </div>
+                        <div class="control-item"><input type="checkbox" data-square="B" checked onchange="cfg.B.points=this.checked; draw()"> <b>Точки управления</b></div>
+                        <div class="control-item"><input type="checkbox" data-square="B" checked onchange="cfg.B.ellipse=this.checked; draw()"> Эллипс</div>
+                        <div class="control-item"><input type="checkbox" data-square="B" checked onchange="cfg.B.fill=this.checked; draw()"> Заполнение</div>
+                        <div class="control-item"><input type="checkbox" data-square="B" checked onchange="cfg.B.vertAxis=this.checked; draw()"> Вертикальная ось</div>
+                        <div class="control-item"><input type="checkbox" data-square="B" checked onchange="cfg.B.horAxis=this.checked; draw()"> Горизонтальная ось</div>
+                    </div>
+                    <div>
+                        <div class="control-item"><input type="checkbox" data-square="B" checked onchange="cfg.B.front=this.checked; draw()"> Передняя сторона</div>
+                        <div class="control-item"><input type="checkbox" data-square="B" checked onchange="cfg.B.back=this.checked; draw()"> Задняя сторона</div>
+                        <div class="control-item"><input type="checkbox" data-square="B" checked onchange="cfg.B.sides=this.checked; draw()"> Боковые стороны</div>
+                        <div class="control-item"><input type="checkbox" data-square="B" checked onchange="cfg.B.toV=this.checked; draw()"> Линии к точке схода</div>
+                        <div class="control-item"><input type="checkbox" data-square="B" checked onchange="cfg.B.diag1=this.checked; draw()"> Диагональ 1</div>
+                        <div class="control-item"><input type="checkbox" data-square="B" checked onchange="cfg.B.diag2=this.checked; draw()"> Диагональ 2</div>
+                        <div class="control-item red-item"><input type="checkbox" data-square="B" onchange="cfg.B.redLine=this.checked; draw()"> Широкая часть</div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="square-block">
+                <div class="column-title">Верхний квадрат (T)</div>
+                <div class="square-cols">
+                    <div>
+                        <div class="control-item master-item">
+                            <input type="checkbox" class="master-toggle" data-master="T" checked
+                                   onchange="toggleAll('T', this.checked)"> <b>Вкл-выкл всё</b>
+                        </div>
+                        <div class="control-item"><input type="checkbox" data-square="T" checked onchange="cfg.T.points=this.checked; draw()"> <b>Точки управления</b></div>
+                        <div class="control-item"><input type="checkbox" data-square="T" checked onchange="cfg.T.ellipse=this.checked; draw()"> Эллипс</div>
+                        <div class="control-item"><input type="checkbox" data-square="T" checked onchange="cfg.T.fill=this.checked; draw()"> Заполнение</div>
+                        <div class="control-item"><input type="checkbox" data-square="T" checked onchange="cfg.T.vertAxis=this.checked; draw()"> Вертикальная ось</div>
+                        <div class="control-item"><input type="checkbox" data-square="T" checked onchange="cfg.T.horAxis=this.checked; draw()"> Горизонтальная ось</div>
+                    </div>
+                    <div>
+                        <div class="control-item"><input type="checkbox" data-square="T" checked onchange="cfg.T.front=this.checked; draw()"> Передняя сторона</div>
+                        <div class="control-item"><input type="checkbox" data-square="T" checked onchange="cfg.T.back=this.checked; draw()"> Задняя сторона</div>
+                        <div class="control-item"><input type="checkbox" data-square="T" checked onchange="cfg.T.sides=this.checked; draw()"> Боковые стороны</div>
+                        <div class="control-item"><input type="checkbox" data-square="T" checked onchange="cfg.T.toV=this.checked; draw()"> Линии к точке схода</div>
+                        <div class="control-item"><input type="checkbox" data-square="T" checked onchange="cfg.T.diag1=this.checked; draw()"> Диагональ 1</div>
+                        <div class="control-item"><input type="checkbox" data-square="T" checked onchange="cfg.T.diag2=this.checked; draw()"> Диагональ 2</div>
+                        <div class="control-item red-item"><input type="checkbox" data-square="T" onchange="cfg.T.redLine=this.checked; draw()"> Широкая часть</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div id="mirrorControls" class="mirror-controls">
+        <div class="mc-header">
+            <span>🔍 Зеркало</span>
+            <button class="mc-close" onclick="toggleMirror(false)" title="Выключить">✕</button>
+        </div>
+        <label class="mc-row">
+            <span>Прозр.</span>
+            <input type="range" min="0" max="100" value="100" oninput="setMirrorOpacity(this.value/100)">
+        </label>
+        <label class="mc-row">
+            <span>Режим</span>
+            <select onchange="setMirrorBlend(this.value)">
+                <option value="multiply" selected>Multiply</option>
+                <option value="normal">Normal</option>
+                <option value="difference">Difference</option>
+            </select>
+        </label>
+        <div class="mc-actions">
+            <button onclick="refreshMirror()" title="Сделать новый снимок">🔄 Обновить</button>
+            <button onclick="autoAlignMirror('B')" title="Совместить по нижней красной линии">🎯 К нижней</button>
+        </div>
+        <div class="mc-actions" style="border-top: none; padding-top: 0;">
+            <button onclick="autoAlignMirror('T')" title="Совместить по верхней красной линии">🎯 К верхней</button>
+            <button onclick="resetMirrorPos()" title="Сбросить позицию">⟲ Сброс</button>
+        </div>
+        <div class="mc-hint">
+            <b>ПКМ</b> — тащить отражение<br>
+            <b>ЛКМ</b> — работает как обычно<br>
+            <b>Тащить за шапку</b> — двигать эту панель
+        </div>
+    </div>
+
+    <canvas id="c"></canvas>
+    <img id="mirrorOverlay" alt="" draggable="false">
+
+<script type="importmap">
+{
+  "imports": {
+    "three": "https://unpkg.com/three@0.160.0/build/three.module.js",
+    "three/addons/": "https://unpkg.com/three@0.160.0/examples/jsm/"
+  }
+}
+</script>
+
+<script type="module">
+import * as THREE from 'three';
+import { Line2 } from 'three/addons/lines/Line2.js';
+import { LineMaterial } from 'three/addons/lines/LineMaterial.js';
+import { LineGeometry } from 'three/addons/lines/LineGeometry.js';
+
+// ============================================================
+// СОСТОЯНИЕ
+// ============================================================
+const canvasEl = document.getElementById('c');
+let w, h, drag = null, dragOffsetY = 0;
+let isDrawing = false, isPainting = false, sketch = [];
+window.brushColor = '#222';
+window.brushSize = 5;
+
+const RED_OVERHANG = 30;
+const RED_THIN = 1.2;
+const RED_WALL = 2.0;
+
+const SQUARE_KEYS = ['points','ellipse','fill','vertAxis','horAxis','front','back','sides','toV','diag1','diag2','redLine'];
+
+const cfg = {
+    horizon: true, vanishing: true, cylSides: true,
+    frontConn: false,
+    backConn: false,
+    redSides: false,
+    B: { points: true, ellipse: true, fill: true, vertAxis: true, horAxis: true, front: true, back: true, sides: true, toV: true, diag1: true, diag2: true, redLine: false },
+    T: { points: true, ellipse: true, fill: true, vertAxis: true, horAxis: true, front: true, back: true, sides: true, toV: true, diag1: true, diag2: true, redLine: false }
+};
+
+let dist = 450, cylHeight = 280;
+const v = { x: 0, y: 0 };
+const base = { a: {x: 0, y: 0}, b: {x: 0, y: 0} };
+
+const mirror = {
+    active: false,
+    opacity: 1.0,
+    blend: 'multiply',
+    posX: 0,
+    posY: 0,
+    dragging: null
+};
+
+let lastEB = null, lastET = null;
+
+// ============================================================
+// THREE.JS СЦЕНА
+// ============================================================
+const scene = new THREE.Scene();
+scene.background = new THREE.Color(0xf4f5f7);
+
+const camera = new THREE.OrthographicCamera(-1, 1, 1, -1, 0.1, 100);
+camera.position.z = 10;
+
+const renderer = new THREE.WebGLRenderer({
+    canvas: canvasEl,
+    antialias: true,
+    preserveDrawingBuffer: true
+});
+renderer.setPixelRatio(window.devicePixelRatio);
+
+function toWX(sx) { return sx - w / 2; }
+function toWY(sy) { return h / 2 - sy; }
+
+// ============================================================
+// ХЕЛПЕРЫ РИСОВАНИЯ
+// ============================================================
+function addLine(points, color, width, z = 0) {
+    if (!points || points.length < 2) return;
+    const positions = [];
+    for (const p of points) positions.push(toWX(p.x), toWY(p.y), z);
+    const geom = new LineGeometry();
+    geom.setPositions(positions);
+    const mat = new LineMaterial({
+        color: new THREE.Color(color),
+        linewidth: width,
+        transparent: true,
+        depthTest: false
+    });
+    mat.resolution.set(w, h);
+    scene.add(new Line2(geom, mat));
+}
+
+function addFill(points, color, opacity, z = -0.5) {
+    if (!points || points.length < 3) return;
+    const shape = new THREE.Shape();
+    points.forEach((p, i) => {
+        const x = toWX(p.x), y = toWY(p.y);
+        if (i === 0) shape.moveTo(x, y);
+        else shape.lineTo(x, y);
+    });
+    shape.closePath();
+    const geom = new THREE.ShapeGeometry(shape);
+    const mat = new THREE.MeshBasicMaterial({
+        color: new THREE.Color(color),
+        transparent: true,
+        opacity,
+        side: THREE.DoubleSide,
+        depthWrite: false,
+        depthTest: false
+    });
+    const mesh = new THREE.Mesh(geom, mat);
+    mesh.position.z = z;
+    scene.add(mesh);
+}
+
+function addCircle(x, y, r, color, z = 0.5) {
+    const geom = new THREE.CircleGeometry(r, 32);
+    const mat = new THREE.MeshBasicMaterial({
+        color: new THREE.Color(color),
+        depthWrite: false,
+        depthTest: false
+    });
+    const mesh = new THREE.Mesh(geom, mat);
+    mesh.position.set(toWX(x), toWY(y), z);
+    scene.add(mesh);
+}
+
+function addRing(x, y, rInner, rOuter, color, z = 0.51) {
+    const geom = new THREE.RingGeometry(rInner, rOuter, 40);
+    const mat = new THREE.MeshBasicMaterial({
+        color: new THREE.Color(color),
+        side: THREE.DoubleSide,
+        depthWrite: false,
+        depthTest: false
+    });
+    const mesh = new THREE.Mesh(geom, mat);
+    mesh.position.set(toWX(x), toWY(y), z);
+    scene.add(mesh);
+}
+
+function addEllipseStroke(ex, ey, rx, ry, color, width, z = 0) {
+    const seg = 96;
+    const pts = [];
+    for (let i = 0; i <= seg; i++) {
+        const a = (i / seg) * Math.PI * 2;
+        pts.push({ x: ex + Math.cos(a) * rx, y: ey + Math.sin(a) * ry });
+    }
+    addLine(pts, color, width, z);
+}
+
+function addEllipseFill(ex, ey, rx, ry, color, opacity, z = -0.4) {
+    const seg = 64;
+    const pts = [];
+    for (let i = 0; i < seg; i++) {
+        const a = (i / seg) * Math.PI * 2;
+        pts.push({ x: ex + Math.cos(a) * rx, y: ey + Math.sin(a) * ry });
+    }
+    addFill(pts, color, opacity, z);
+}
+
+function clearScene() {
+    while (scene.children.length) {
+        const obj = scene.children[0];
+        scene.remove(obj);
+        if (obj.geometry) obj.geometry.dispose();
+        if (obj.material) {
+            if (Array.isArray(obj.material)) obj.material.forEach(m => m.dispose());
+            else obj.material.dispose();
+        }
+    }
+}
+
+// ============================================================
+// МАТЕМАТИКА ПЕРСПЕКТИВЫ
+// ============================================================
+function intersect(p1, p2, p3, p4) {
+    const denom = (p4.y - p3.y) * (p2.x - p1.x) - (p4.x - p3.x) * (p2.y - p1.y);
+    if (Math.abs(denom) < 0.0001) return null;
+    const ua = ((p4.x - p3.x) * (p1.y - p3.y) - (p4.y - p3.y) * (p1.x - p3.x)) / denom;
+    return { x: p1.x + ua * (p2.x - p1.x), y: p1.y + ua * (p2.y - p1.y) };
+}
+
+function getSq(yF) {
+    v.x = (base.a.x + base.b.x) / 2;
+    const a = { x: base.a.x, y: yF }, b = { x: base.b.x, y: yF };
+    const d1 = { x: v.x - dist, y: v.y }, d2 = { x: v.x + dist, y: v.y };
+    const c = intersect(a, v, b, d1), d = intersect(b, v, a, d2);
+    return { a, b, c, d };
+}
+
+function getEllParams(s) {
+    const ey = (s.a.y + s.c.y) / 2, ry = Math.abs(s.a.y - s.c.y) / 2;
+    const k = Math.abs((s.a.x - v.x) / (s.a.y - v.y));
+    const rx = k * Math.sqrt(Math.abs(v.y - s.a.y) * Math.abs(v.y - s.c.y));
+    return { ex: v.x, ey, rx, ry };
+}
+
+function getSideAxisPoints(s) {
+    const pc = intersect(s.a, s.d, s.b, s.c);
+    if (!pc) return null;
+    const xLeft = v.x + (s.a.x - v.x) * (pc.y - v.y) / (s.a.y - v.y);
+    const xRight = v.x + (s.b.x - v.x) * (pc.y - v.y) / (s.b.y - v.y);
+    return { left: { x: xLeft, y: pc.y }, right: { x: xRight, y: pc.y } };
+}
+
+function drawExt(p1, p2, ext1, ext2, color, width, z = 0) {
+    const dx = p2.x - p1.x, dy = p2.y - p1.y, len = Math.hypot(dx, dy);
+    if (len === 0) return;
+    const q1 = { x: p1.x - (dx / len) * ext1, y: p1.y - (dy / len) * ext1 };
+    const q2 = { x: p2.x + (dx / len) * ext2, y: p2.y + (dy / len) * ext2 };
+    addLine([q1, q2], color, width, z);
+}
+
+// ============================================================
+// КРАСНЫЕ ЛИНИИ
+// ============================================================
+function addEllipseWidestLine(s, e, color = 0xcc3333, width = RED_THIN, z = 0.05) {
+    if (!e) return;
+    const y = e.ey;
+    const xSideL = (s.a.x + s.c.x) / 2;
+    const xSideR = (s.b.x + s.d.x) / 2;
+    const xMin = Math.min(xSideL, e.ex - e.rx) - RED_OVERHANG;
+    const xMax = Math.max(xSideR, e.ex + e.rx) + RED_OVERHANG;
+    addLine([{ x: xMin, y }, { x: xMax, y }], color, width, z);
+}
+
+function addRedSideLines(eB, eT, color = 0xcc3333, width = RED_WALL, z = 0.05) {
+    if (!eB || !eT) return;
+    const pB = { left: { x: eB.ex - eB.rx, y: eB.ey }, right: { x: eB.ex + eB.rx, y: eB.ey } };
+    const pT = { left: { x: eT.ex - eT.rx, y: eT.ey }, right: { x: eT.ex + eT.rx, y: eT.ey } };
+    addLine([pB.left,  pT.left],  color, width, z);
+    addLine([pB.right, pT.right], color, width, z);
+}
+
+// ============================================================
+// ОСНОВНАЯ ОТРИСОВКА
+// ============================================================
+function draw() {
+    clearScene();
+
+    const sqB = getSq(base.a.y), sqT = getSq(base.a.y - cylHeight);
+    if (!sqB.c || !sqT.c) { renderer.render(scene, camera); return; }
+
+    if (cfg.B.fill) addFill([sqB.a, sqB.b, sqB.d, sqB.c], 0x0050b4, 0.04, -0.5);
+    if (cfg.T.fill) addFill([sqT.a, sqT.b, sqT.d, sqT.c], 0x0050b4, 0.04, -0.5);
+
+    if (cfg.frontConn) {
+        addLine([sqB.a, sqT.a], 0x0066ff, 0.8, -0.2);
+        addLine([sqB.b, sqT.b], 0x0066ff, 0.8, -0.2);
+    }
+    if (cfg.backConn) {
+        addLine([sqB.c, sqT.c], 0x0066ff, 0.8, -0.2);
+        addLine([sqB.d, sqT.d], 0x0066ff, 0.8, -0.2);
+    }
+
+    const eB = getEllParams(sqB);
+    const eT = getEllParams(sqT);
+    lastEB = eB;
+    lastET = eT;
+
+    if (cfg.B.ellipse) {
+        addEllipseFill(eB.ex, eB.ey, eB.rx, eB.ry, 0x0066ff, 0.06, -0.4);
+        addEllipseStroke(eB.ex, eB.ey, eB.rx, eB.ry, 0x0066ff, 3, 0);
+    }
+    if (cfg.T.ellipse) {
+        addEllipseFill(eT.ex, eT.ey, eT.rx, eT.ry, 0x0066ff, 0.06, -0.4);
+        addEllipseStroke(eT.ex, eT.ey, eT.rx, eT.ry, 0x0066ff, 3, 0);
+    }
+
+    if (cfg.B.redLine) addEllipseWidestLine(sqB, eB, 0xcc3333, RED_THIN, 0.05);
+    if (cfg.T.redLine) addEllipseWidestLine(sqT, eT, 0xcc3333, RED_THIN, 0.05);
+    if (cfg.redSides) addRedSideLines(eB, eT, 0xcc3333, RED_WALL, 0.05);
+
+    if (cfg.cylSides) {
+        const ptsB = getSideAxisPoints(sqB), ptsT = getSideAxisPoints(sqT);
+        if (ptsB && ptsT) {
+            addLine([ptsB.left, ptsT.left], 0x222222, 3, 0.1);
+            addLine([ptsB.right, ptsT.right], 0x222222, 3, 0.1);
+        }
+    }
+
+    [[sqB, cfg.B, 15, 45], [sqT, cfg.T, 25, 25]].forEach(([s, c, vExt, vertTail]) => {
+        if (c.front) drawExt(s.a, s.b, 0, 0, 0x222222, 2.5, 0);
+        if (c.back)  drawExt(s.c, s.d, 0, 0, 0x222222, 2.5, 0);
+        if (c.sides) {
+            drawExt(s.a, s.c, 0, 0, 0x222222, 2.5, 0);
+            drawExt(s.b, s.d, 0, 0, 0x222222, 2.5, 0);
+        }
+
+        if (c.toV) {
+            drawExt(s.a, v, 30, vExt, 0x0066ff, 1.2, -0.1);
+            drawExt(s.b, v, 30, vExt, 0x0066ff, 1.2, -0.1);
+        }
+
+        const pc = intersect(s.a, s.d, s.b, s.c);
+        if (c.horAxis && pc) {
+            const pts = getSideAxisPoints(s);
+            drawExt(pts.left, pts.right, 30, 30, 0x8a8a8a, 1.2, -0.15);
+        }
+        if (c.vertAxis) drawExt({ x: v.x, y: s.a.y }, v, vertTail, 20, 0x8a8a8a, 1.2, -0.15);
+        if (c.diag1)    drawExt(s.a, s.d, 25, 10, 0x8a8a8a, 1.2, -0.15);
+        if (c.diag2)    drawExt(s.b, s.c, 25, 10, 0x8a8a8a, 1.2, -0.15);
+    });
+
+    if (cfg.horizon) {
+        addLine([{ x: 0, y: v.y }, { x: w, y: v.y }], 0xf8ad00, 2.5, -0.3);
+    }
+    if (cfg.vanishing) {
+        addCircle(v.x, v.y, 8, 0xcc3333, 0.5);
+        addRing(v.x, v.y, 7, 9, 0xffffff, 0.51);
+    }
+
+    if (!isDrawing) {
+        const drawPts = (s, isT) => {
+            addCircle(s.a.x, s.a.y, 6, 0x0066ff, 0.5);
+            addCircle(s.b.x, s.b.y, 6, 0x0066ff, 0.5);
+            addCircle(v.x, s.c.y, 8, 0x00cc66, 0.5);
+            addRing(v.x, s.c.y, 7, 9, 0xffffff, 0.51);
+            addCircle(v.x, s.a.y, 8, isT ? 0xff9900 : 0x0066ff, 0.5);
+            addRing(v.x, s.a.y, 7, 9, 0xffffff, 0.51);
+        };
+        if (cfg.B.points) drawPts(sqB, false);
+        if (cfg.T.points) drawPts(sqT, true);
+    }
+
+    if (sketch.length) {
+        sketch.forEach(l => addLine(l.p, l.c, l.s, 1));
+    }
+
+    renderer.render(scene, camera);
+}
+
+// ============================================================
+// ЗЕРКАЛО
+// ============================================================
+const mirrorEl = document.getElementById('mirrorOverlay');
+
+function toggleMirror(forceState) {
+    const newState = (typeof forceState === 'boolean') ? forceState : !mirror.active;
+    mirror.active = newState;
+
+    document.getElementById('btnMirror').classList.toggle('active', mirror.active);
+    document.getElementById('mirrorControls').style.display = mirror.active ? 'flex' : 'none';
+
+    if (mirror.active) {
+        mirror.posX = 0;
+        mirror.posY = 0;
+        refreshMirror();
+        autoAlignMirror('B');
+    } else {
+        mirrorEl.style.display = 'none';
+        mirrorEl.src = '';
+    }
+}
+
+function refreshMirror() {
+    if (!mirror.active) return;
+
+    renderer.render(scene, camera);
+
+    const snap = document.createElement('canvas');
+    snap.width  = renderer.domElement.width;
+    snap.height = renderer.domElement.height;
+    const sctx = snap.getContext('2d');
+    sctx.drawImage(renderer.domElement, 0, 0);
+
+    mirrorEl.src = snap.toDataURL('image/png');
+    mirrorEl.style.width  = w + 'px';
+    mirrorEl.style.height = h + 'px';
+    mirrorEl.style.left   = mirror.posX + 'px';
+    mirrorEl.style.top    = mirror.posY + 'px';
+    mirrorEl.style.opacity = mirror.opacity;
+    mirrorEl.style.mixBlendMode = (mirror.blend === 'normal') ? 'normal' : mirror.blend;
+    mirrorEl.style.display = 'block';
+}
+
+function setMirrorOpacity(o) {
+    mirror.opacity = Math.max(0, Math.min(1, o));
+    mirrorEl.style.opacity = mirror.opacity;
+}
+
+function setMirrorBlend(mode) {
+    mirror.blend = mode;
+    mirrorEl.style.mixBlendMode = (mode === 'normal') ? 'normal' : mode;
+}
+
+function resetMirrorPos() {
+    mirror.posX = 0;
+    mirror.posY = 0;
+    mirrorEl.style.left = '0px';
+    mirrorEl.style.top  = '0px';
+}
+
+function autoAlignMirror(which) {
+    const e = (which === 'T') ? lastET : lastEB;
+    if (!e) return;
+    const H = h;
+    const R = e.ey;
+    mirror.posY = 2 * R - H;
+    mirror.posX = 0;
+    mirrorEl.style.left = mirror.posX + 'px';
+    mirrorEl.style.top  = mirror.posY + 'px';
+}
+
+// ============================================================
+// ПЕРЕТАСКИВАНИЕ ПАНЕЛЕЙ
+// ============================================================
+function makeDraggable(panel) {
+    let dragging = false;
+    let offsetX = 0, offsetY = 0;
+
+    panel.addEventListener('mousedown', (e) => {
+        if (e.button !== 0) return;
+        if (e.target.closest('input, label, button, select, textarea, a')) return;
+
+        const rect = panel.getBoundingClientRect();
+        panel.style.left = rect.left + 'px';
+        panel.style.top  = rect.top  + 'px';
+        panel.style.right = 'auto';   // важно для .mirror-controls
+        panel.style.bottom = 'auto';
+        panel.style.transform = 'none';
+
+        offsetX = e.clientX - rect.left;
+        offsetY = e.clientY - rect.top;
+
+        dragging = true;
+        panel.classList.add('dragging');
+        document.body.style.userSelect = 'none';
+        e.preventDefault();
+    });
+
+    window.addEventListener('mousemove', (e) => {
+        if (!dragging) return;
+        const rect = panel.getBoundingClientRect();
+        let newLeft = e.clientX - offsetX;
+        let newTop  = e.clientY - offsetY;
+
+        const MIN_VISIBLE_X = 120;
+        const MIN_VISIBLE_Y = 40;
+        newLeft = Math.max(-(rect.width - MIN_VISIBLE_X), Math.min(newLeft, window.innerWidth - MIN_VISIBLE_X));
+        newTop  = Math.max(0, Math.min(newTop, window.innerHeight - MIN_VISIBLE_Y));
+
+        panel.style.left = newLeft + 'px';
+        panel.style.top  = newTop  + 'px';
+    });
+
+    window.addEventListener('mouseup', () => {
+        if (!dragging) return;
+        dragging = false;
+        panel.classList.remove('dragging');
+        document.body.style.userSelect = '';
+    });
+}
+
+// ============================================================
+// UI
+// ============================================================
+window.toggleControls = function () {
+    const p = document.getElementById('controlsPanel');
+    p.style.display = (p.style.display === 'none' || p.style.display === '') ? 'flex' : 'none';
+};
+window.toggleDrawMode = function () {
+    isDrawing = !isDrawing;
+    document.getElementById('btnDrawMode').classList.toggle('active', isDrawing);
+    document.getElementById('drawPanel').style.display = isDrawing ? 'flex' : 'none';
+    draw();
+};
+window.clearSketch = function () { sketch = []; draw(); };
+window.setBrushColor = function (c) { window.brushColor = c; };
+window.setBrushSize = function (s) { window.brushSize = s; };
+
+window.toggleAll = function (prefix, value) {
+    SQUARE_KEYS.forEach(k => cfg[prefix][k] = value);
+    document.querySelectorAll(`input[data-square="${prefix}"]`).forEach(cb => {
+        cb.checked = value;
+    });
+    draw();
+    if (mirror.active) refreshMirror();
+};
+
+function syncMaster(prefix) {
+    const onCount = SQUARE_KEYS.filter(k => cfg[prefix][k]).length;
+    const master = document.querySelector(`input[data-master="${prefix}"]`);
+    if (!master) return;
+    master.checked = onCount === SQUARE_KEYS.length;
+    master.indeterminate = onCount > 0 && onCount < SQUARE_KEYS.length;
+}
+
+document.getElementById('controlsPanel').addEventListener('change', e => {
+    const cb = e.target;
+    if (cb.matches && cb.matches('input[data-square]')) {
+        syncMaster(cb.dataset.square);
+    }
+});
+
+window.toggleMirror = toggleMirror;
+window.refreshMirror = refreshMirror;
+window.setMirrorOpacity = setMirrorOpacity;
+window.setMirrorBlend = setMirrorBlend;
+window.resetMirrorPos = resetMirrorPos;
+window.autoAlignMirror = autoAlignMirror;
+
+window.cfg = cfg;
+window.draw = draw;
+
+// ============================================================
+// INIT / RESIZE
+// ============================================================
+function init() {
+    w = window.innerWidth;
+    h = window.innerHeight;
+
+    renderer.setPixelRatio(window.devicePixelRatio);
+    renderer.setSize(w, h);
+
+    camera.left   = -w / 2;
+    camera.right  =  w / 2;
+    camera.top    =  h / 2;
+    camera.bottom = -h / 2;
+    camera.updateProjectionMatrix();
+
+    v.y = h * 0.35;
+    if (base.a.x === 0) {
+        base.a.x = w / 2 - 150; base.a.y = v.y + 220;
+        base.b.x = w / 2 + 150; base.b.y = v.y + 220;
+    }
+    v.x = (base.a.x + base.b.x) / 2;
+
+    syncMaster('B');
+    syncMaster('T');
+
+    draw();
+
+    if (mirror.active) {
+        mirrorEl.style.width  = w + 'px';
+        mirrorEl.style.height = h + 'px';
+        refreshMirror();
+    }
+}
+
+// ============================================================
+// МЫШЬ
+// ============================================================
+window.oncontextmenu = e => e.preventDefault();
+
+window.onmousedown = e => {
+    const m = { x: e.clientX, y: e.clientY };
+
+    if (e.button === 2 && mirror.active) {
+        mirror.dragging = {
+            startX: m.x, startY: m.y,
+            startPosX: mirror.posX, startPosY: mirror.posY
+        };
+        mirrorEl.style.cursor = 'grabbing';
+        return;
+    }
+
+    if (e.button !== 0) return;
+
+    if (isDrawing) {
+        isPainting = true;
+        sketch.push({ c: window.brushColor, s: window.brushSize, p: [m] });
+        return;
+    }
+    const sqB = getSq(base.a.y), sqT = getSq(base.a.y - cylHeight);
+    if (cfg.vanishing && Math.hypot(v.x - m.x, v.y - m.y) < 20) { drag = { type: 'v' }; return; }
+
+    const checkPts = (s, typePrefix) => {
+        if (Math.hypot(v.x - m.x, s.a.y - m.y) < 15) return { type: typePrefix === 'B' ? 'move' : 'h' };
+        if (Math.hypot(v.x - m.x, s.c.y - m.y) < 15) return { type: 'd', yF: s.a.y, off: s.c.y - m.y };
+        if (Math.hypot(s.a.x - m.x, s.a.y - m.y) < 15 || Math.hypot(s.b.x - m.x, s.b.y - m.y) < 15) {
+            return { type: typePrefix === 'B' ? 'wB' : 'wT', off: s.a.y - m.y };
+        }
+        return null;
+    };
+
+    if (cfg.T.points) { let res = checkPts(sqT, 'T'); if (res) { drag = res; if (res.off) dragOffsetY = res.off; return; } }
+    if (cfg.B.points) { let res = checkPts(sqB, 'B'); if (res) { drag = res; if (res.off) dragOffsetY = res.off; return; } }
+};
+
+window.onmousemove = e => {
+    const m = { x: e.clientX, y: e.clientY };
+
+    if (mirror.dragging) {
+        mirror.posX = mirror.dragging.startPosX + (m.x - mirror.dragging.startX);
+        mirror.posY = mirror.dragging.startPosY + (m.y - mirror.dragging.startY);
+        mirrorEl.style.left = mirror.posX + 'px';
+        mirrorEl.style.top  = mirror.posY + 'px';
+        return;
+    }
+
+    if (isPainting && sketch.length > 0) {
+        sketch[sketch.length - 1].p.push(m);
+        draw();
+        return;
+    }
+    if (!drag) return;
+
+    if (drag.type === 'v') {
+        v.y = m.y;
+    } else if (drag.type === 'h') {
+        cylHeight = base.a.y - m.y;
+    } else if (drag.type === 'move') {
+        const dx = m.x - v.x, dy = m.y - base.a.y;
+        base.a.x += dx; base.a.y += dy;
+        base.b.x += dx; base.b.y += dy;
+    } else if (drag.type === 'wB' || drag.type === 'wT') {
+        if (drag.type === 'wB') base.a.y = base.b.y = m.y + dragOffsetY;
+        else cylHeight = base.a.y - m.y;
+        const dx = Math.abs(m.x - v.x);
+        base.a.x = v.x - dx; base.b.x = v.x + dx;
+    } else if (drag.type === 'd') {
+        const yF = drag.yF, wF = Math.abs(base.b.x - base.a.x);
+        const tY = (yF > v.y)
+            ? Math.max(v.y + 5, Math.min(yF - 5, m.y + dragOffsetY))
+            : Math.min(v.y - 5, Math.max(yF + 5, m.y + dragOffsetY));
+        dist = Math.abs(wF * (v.y - tY) / (tY - yF));
+    }
+    draw();
+    if (mirror.active) refreshMirror();
+};
+
+window.onmouseup = () => {
+    if (mirror.dragging) {
+        mirror.dragging = null;
+        mirrorEl.style.cursor = '';
+    }
+    drag = null;
+    isPainting = false;
+};
+
+window.onresize = init;
+
+// Привязываем перетаскивание к обеим панелям
+makeDraggable(document.getElementById('controlsPanel'));
+makeDraggable(document.getElementById('mirrorControls'));
+
+init();
+</script>
+</body>
+</html>
