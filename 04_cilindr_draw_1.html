@@ -1,0 +1,1200 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>Цилиндр в перспективе — пошаговое построение</title>
+<style>
+  * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+  html, body { margin: 0; padding: 0; height: 100%; overflow: hidden; }
+  body {
+    background: #e8e2d4;
+    font-family: 'Georgia', 'Times New Roman', serif;
+    color: #333;
+    touch-action: manipulation;
+  }
+  #paper {
+    display: block;
+    width: 100%;
+    height: 100%;
+    background: radial-gradient(ellipse at 30% 20%, #fbf7ef 0%, #f4ede0 60%, #ece4d2 100%);
+  }
+  
+  #controls {
+    position: fixed;
+    bottom: 18px;
+    left: 50%;
+    transform: translateX(-50%);
+    display: flex;
+    gap: 8px;
+    align-items: center;
+    background: rgba(250, 246, 238, 0.96);
+    border: 1px solid rgba(80, 60, 40, 0.18);
+    padding: 8px 12px;
+    border-radius: 40px;
+    box-shadow: 0 6px 24px rgba(60, 40, 20, 0.12);
+    z-index: 10;
+    backdrop-filter: blur(8px);
+    -webkit-backdrop-filter: blur(8px);
+  }
+
+  body.settings-open #controls {
+    background: rgba(238, 242, 250, 0.96);
+    border-color: #a8b4c8;
+    box-shadow: 0 6px 24px rgba(70, 85, 120, 0.18);
+  }
+
+  #controls button,
+  #controls .btn-home {
+    font-family: inherit;
+    font-size: 15px;
+    font-weight: 500;
+    padding: 10px 16px;
+    border: 1.5px solid #c0b8a8;
+    background: #fdfaf4;
+    color: #444;
+    border-radius: 22px;
+    cursor: pointer;
+    transition: all 0.15s;
+    min-width: 80px;
+    text-decoration: none;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    line-height: 1;
+  }
+  #controls button:hover:not(:disabled),
+  #controls .btn-home:hover { background: #f5efe0; border-color: #a09080; }
+  #controls button:active:not(:disabled),
+  #controls .btn-home:active { transform: scale(0.97); }
+  #controls button:disabled { opacity: 0.35; cursor: not-allowed; }
+
+  #controls .btn-home {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 12px;
+    font-weight: 500;
+    color: #555;
+    padding: 6px 12px;
+    border-radius: 20px;
+    background: rgba(180, 170, 155, 0.15);
+    border: 1px solid transparent;
+    cursor: pointer;
+    text-decoration: none;
+    transition: border-color 0.2s;
+    line-height: 1;
+    min-width: 0;
+  }
+  #controls .btn-home:hover {
+    border-color: #c0b8a8;
+    background: rgba(180, 170, 155, 0.15);
+  }
+  #controls .btn-home:active { transform: scale(0.97); }
+
+  #gear-btn, #close-settings {
+    min-width: 44px !important;
+    padding: 10px 12px !important;
+    font-size: 18px !important;
+  }
+  #gear-btn { background: #fdfaf4; }
+  #close-settings { background: #fdfaf4; color: #c33; }
+
+  #method-toggle {
+    display: flex; align-items: center; gap: 8px;
+    font-size: 12px; color: #555;
+    padding: 6px 10px; border-radius: 20px;
+    background: rgba(180, 170, 155, 0.15);
+    cursor: pointer; user-select: none;
+    border: 1px solid transparent;
+    transition: border-color 0.2s;
+  }
+  #method-toggle:hover { border-color: #c0b8a8; }
+  #method-toggle input { display: none; }
+  #method-toggle .switch {
+    position: relative;
+    width: 32px; height: 18px;
+    background: #c0b8a8;
+    border-radius: 10px;
+    transition: background 0.2s;
+    flex-shrink: 0;
+  }
+  #method-toggle .switch::after {
+    content: '';
+    position: absolute; top: 2px; left: 2px;
+    width: 14px; height: 14px;
+    background: #fff; border-radius: 50%;
+    transition: transform 0.2s;
+    box-shadow: 0 1px 2px rgba(0,0,0,0.2);
+  }
+  #method-toggle input:checked + .switch { background: #5a9b5a; }
+  #method-toggle input:checked + .switch::after { transform: translateX(14px); }
+
+  .settings-only { display: none !important; }
+  body.settings-open .settings-only { display: flex !important; }
+  body.settings-open .settings-only.btn-like { display: inline-flex !important; }
+  body.settings-open .normal-only { display: none !important; }
+
+  #step-info {
+    position: fixed;
+    top: 14px;
+    left: 50%;
+    transform: translateX(-50%);
+    font-size: 12px;
+    color: #999;
+    font-family: -apple-system, 'Segoe UI', sans-serif;
+    background: rgba(250, 246, 238, 0.85);
+    padding: 5px 14px;
+    border-radius: 14px;
+    pointer-events: none;
+    opacity: 0.85;
+    transition: opacity 0.3s;
+    z-index: 5;
+  }
+  body.settings-open #step-info { display: none; }
+
+  .side-control {
+    position: fixed;
+    top: 50%;
+    transform: translateY(-50%);
+    height: 60vh;
+    max-height: 450px;
+    width: 44px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: space-between;
+    background: rgba(250, 246, 238, 0.95);
+    padding: 12px 0;
+    border-radius: 22px;
+    box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+    border: 1px solid #c0b8a8;
+    z-index: 20;
+  }
+
+  .side-control .side-icon {
+    font-size: 16px;
+    color: #444;
+    font-weight: bold;
+    line-height: 1;
+    user-select: none;
+  }
+
+  .side-control input[type="range"] {
+    -webkit-appearance: none;
+    appearance: none;
+    width: 55vh;
+    max-width: 400px;
+    height: 6px;
+    background: #d0c8b8;
+    border-radius: 3px;
+    outline: none;
+    cursor: pointer;
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%) rotate(-90deg);
+  }
+
+  .side-control input[type="range"]::-webkit-slider-thumb {
+    -webkit-appearance: none;
+    appearance: none;
+    width: 32px;
+    height: 32px;
+    border-radius: 50%;
+    cursor: pointer;
+    box-shadow: 0 2px 6px rgba(0,0,0,0.3);
+    border: 2px solid white;
+    transition: transform 0.1s;
+  }
+  .side-control input[type="range"]::-webkit-slider-thumb:active {
+    transform: scale(1.1);
+  }
+  .side-control input[type="range"]::-moz-range-thumb {
+    width: 32px;
+    height: 32px;
+    border-radius: 50%;
+    cursor: pointer;
+    box-shadow: 0 2px 6px rgba(0,0,0,0.3);
+    border: 2px solid white;
+  }
+
+  #thickness-control { left: 8px; }
+  #thickness-slider::-webkit-slider-thumb { background: #5a9b5a; }
+  #thickness-slider::-moz-range-thumb { background: #5a9b5a; }
+
+  #height-control { right: 8px; }
+  #height-slider::-webkit-slider-thumb { background: #e08830; }
+  #height-slider::-moz-range-thumb { background: #e08830; }
+  #height-slider { background: #e8d0b0; }
+  #height-control .side-icon { color: #c17a28; }
+
+  #anim-control { right: 8px; }
+  #anim-slider::-webkit-slider-thumb { background: #333; }
+  #anim-slider::-moz-range-thumb { background: #333; }
+
+  .ellipse-handle {
+    position: fixed;
+    border-radius: 50%;
+    background: rgba(255, 180, 80, 0.28);
+    border: 2px dashed rgba(200, 130, 40, 0.65);
+    transform: translate(-50%, -50%);
+    cursor: grab;
+    z-index: 15;
+    touch-action: none;
+    display: none;
+    align-items: center;
+    justify-content: center;
+    user-select: none;
+    pointer-events: none;
+  }
+  body.settings-open .ellipse-handle {
+    display: flex !important;
+    pointer-events: auto;
+  }
+  .ellipse-handle:active {
+    cursor: grabbing;
+    background: rgba(255, 180, 80, 0.5);
+  }
+  .ellipse-handle::after {
+    content: '↕';
+    font-size: 26px;
+    color: rgba(180, 100, 30, 0.85);
+    font-weight: 700;
+    line-height: 1;
+  }
+
+  @media (max-width: 520px) {
+    #controls { padding: 6px 8px; gap: 5px; bottom: 12px; }
+    #controls button,
+    #controls .btn-home {
+      padding: 8px 10px;
+      font-size: 13px;
+      min-width: 0;
+    }
+    #controls .btn-home { padding: 6px 10px; font-size: 11px; }
+    #gear-btn, #close-settings {
+      min-width: 36px !important;
+      padding: 8px 8px !important;
+      font-size: 16px !important;
+    }
+    #method-toggle { padding: 5px 6px; font-size: 11px; }
+    #method-toggle .txt { display: none; }
+    #step-info { font-size: 11px; }
+    
+    .side-control { padding: 10px 0; width: 40px; }
+    .side-control .side-icon { font-size: 14px; }
+    .side-control input[type="range"] { width: 50vh; }
+    .side-control input[type="range"]::-webkit-slider-thumb { width: 28px; height: 28px; }
+    .side-control input[type="range"]::-moz-range-thumb { width: 28px; height: 28px; }
+
+    #thickness-control { left: 6px; }
+    #height-control, #anim-control { right: 6px; }
+  }
+</style>
+</head>
+<body>
+<canvas id="paper"></canvas>
+<div id="step-info">Шаг <b id="step-current">0</b> / <b id="step-total">0</b></div>
+
+<div id="anim-control" class="side-control normal-only">
+  <div class="side-icon">⏭</div>
+  <input type="range" id="anim-slider" min="0" max="10" step="1" value="0">
+  <div class="side-icon">⏮</div>
+</div>
+
+<div id="thickness-control" class="side-control settings-only">
+  <div class="side-icon">━</div>
+  <input type="range" id="thickness-slider" min="1.0" max="4.0" step="0.1" value="1.0">
+  <div class="side-icon">─</div>
+</div>
+
+<div id="height-control" class="side-control settings-only">
+  <div class="side-icon">⬆</div>
+  <input type="range" id="height-slider" min="17" max="36" step="1" value="18">
+  <div class="side-icon">⬇</div>
+</div>
+
+<div id="ellipse-handle" class="ellipse-handle"></div>
+
+<div id="controls">
+  <a href="index.html" class="btn-home" title="Вернуться на главную страницу">Меню</a>
+  <button id="back" class="normal-only" disabled>Назад</button>
+  <button id="forward" class="normal-only">Вперёд</button>
+  <label id="method-toggle" class="settings-only" title="Второй способ построения">
+    <input type="checkbox" id="method2" checked>
+    <span class="switch"></span>
+    <span class="txt">Второй способ</span>
+  </label>
+  <button id="gear-btn" class="normal-only" title="Настройки" onclick="toggleSettings()">⚙️</button>
+  <button id="close-settings" class="settings-only btn-like" title="Закрыть настройки" onclick="toggleSettings()">✕</button>
+</div>
+
+<script>
+// ============================================================
+// Состояние
+// ============================================================
+const canvas = document.getElementById('paper');
+const ctx = canvas.getContext('2d');
+
+let W, H, vx, vy;
+let sqB, sqT, eB, eT;
+let bottomFrontY, bottomBackY, topFrontY;
+let frontW;
+
+let steps = [];
+let state = {};
+let currentStep = 0;
+let anim = null;
+let isSecondMethod = true;
+let lineMultiplier = 1.0;
+
+// Геометрические параметры
+let distFactor = 0.40;
+let cylHeightFactor = 0.18;
+const DEPTH_FACTOR = 0.15;
+const WIDTH_FACTOR = 0.44;
+const MAX_WIDTH_PX = 300;
+
+// Ограничения
+const MIN_CYL_HEIGHT = 0.17;   // глубина 0.15 + небольшой зазор
+const MAX_CYL_HEIGHT = 0.36;   // 2× от исходной 0.18
+const MIN_DIST_OFFSET = 0.12;
+const MIN_DIST = 0.24;
+const MAX_DIST = 0.70;
+
+// Загрузка сохранённых параметров
+(function loadFactors() {
+  const sD = localStorage.getItem('cylDist');
+  const sH = localStorage.getItem('cylHeight');
+  const sT = localStorage.getItem('cylThickness');
+
+  if (sD !== null) {
+    const v = parseFloat(sD);
+    if (!isNaN(v)) distFactor = v;
+  }
+  if (sH !== null) {
+    const v = parseFloat(sH);
+    if (!isNaN(v)) cylHeightFactor = v;
+  }
+  if (sT !== null) {
+    const v = parseFloat(sT);
+    if (!isNaN(v) && v >= 1.0) lineMultiplier = v;
+  }
+
+  cylHeightFactor = Math.max(MIN_CYL_HEIGHT, Math.min(MAX_CYL_HEIGHT, cylHeightFactor));
+  distFactor = Math.max(
+    Math.max(MIN_DIST, cylHeightFactor + MIN_DIST_OFFSET),
+    Math.min(MAX_DIST, distFactor)
+  );
+
+  document.getElementById('thickness-slider').value = lineMultiplier;
+  document.getElementById('height-slider').value = Math.round(cylHeightFactor * 100);
+})();
+
+// ============================================================
+// Геометрия
+// ============================================================
+function initGeometry() {
+  const dpr = window.devicePixelRatio || 1;
+  W = window.innerWidth;
+  H = window.innerHeight;
+  canvas.width = W * dpr;
+  canvas.height = H * dpr;
+  canvas.style.width = W + 'px';
+  canvas.style.height = H + 'px';
+  ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+
+  vx = W / 2;
+  vy = H * 0.24;
+
+  frontW = Math.min(W * WIDTH_FACTOR, MAX_WIDTH_PX);
+  bottomFrontY = vy + H * distFactor;
+  bottomBackY = bottomFrontY - H * DEPTH_FACTOR;
+
+  const fl = vx - frontW / 2;
+  const fr = vx + frontW / 2;
+  const t_back = (bottomBackY - vy) / (bottomFrontY - vy);
+  const bl = vx + (fl - vx) * t_back;
+  const br = vx + (fr - vx) * t_back;
+
+  sqB = {
+    a: { x: fl, y: bottomFrontY },
+    b: { x: fr, y: bottomFrontY },
+    c: { x: bl, y: bottomBackY },
+    d: { x: br, y: bottomBackY }
+  };
+  eB = getEll(sqB);
+
+  const cylH = H * cylHeightFactor;
+  const aT = { x: sqB.a.x, y: sqB.a.y - cylH };
+  const bT = { x: sqB.b.x, y: sqB.b.y - cylH };
+
+  const cT = intersectVertLine(sqB.c.x, aT, { x: vx, y: vy });
+  const dT = intersectVertLine(sqB.d.x, bT, { x: vx, y: vy });
+
+  sqT = { a: aT, b: bT, c: cT, d: dT };
+  eT = getEll(sqT);
+  topFrontY = sqT.a.y;
+}
+
+function intersectVertLine(x, p1, p2) {
+  if (Math.abs(p2.x - p1.x) < 1e-6) return { x: x, y: p1.y };
+  const t = (x - p1.x) / (p2.x - p1.x);
+  return { x: x, y: p1.y + (p2.y - p1.y) * t };
+}
+
+function getEll(s) {
+  const ey = (s.a.y + s.c.y) / 2;
+  const ry = Math.abs(s.a.y - s.c.y) / 2;
+  const k = Math.abs((s.a.x - vx) / (s.a.y - vy));
+  const rx = k * Math.sqrt(Math.abs(vy - s.a.y) * Math.abs(vy - s.c.y));
+  return { ex: vx, ey, rx, ry };
+}
+
+function getDiagInt(s) {
+  const ax = s.a.x, ay = s.a.y;
+  const bx = s.b.x, by = s.b.y;
+  const cx = s.c.x, cy = s.c.y;
+  const dx = s.d.x, dy = s.d.y;
+  const dax = dx - ax, day = dy - ay;
+  const dbx = cx - bx, dby = cy - by;
+  const denom = dax * dby - day * dbx;
+  if (Math.abs(denom) < 1e-6) return { x: vx, y: (ay + cy) / 2 };
+  const t = ((bx - ax) * dby - (by - ay) * dbx) / denom;
+  return { x: ax + t * dax, y: ay + t * day };
+}
+
+// ============================================================
+// Построение шагов
+// ============================================================
+function buildSteps(isSecond) {
+  steps = [];
+  const H_color = '#5a5040';
+  const T_color = '#2a2a2a';
+  const R_color = '#c33';
+  const B_color = '#0a5fcf';
+  const AX_color = '#666';
+
+  steps.push({
+    add: [{ id: 'horizon', type: 'line', x1: 15, y1: vy, x2: W - 15, y2: vy,
+            width: 1.1, color: H_color, thin: true }],
+    remove: []
+  });
+
+  steps.push({
+    add: [
+      { id: 'vp_dot', type: 'dot', x: vx, y: vy, r: 3.5, color: R_color },
+      { id: 'vp_h', type: 'line', x1: vx - 12, y1: vy, x2: vx + 12, y2: vy, width: 1, color: R_color, thin: true },
+      { id: 'vp_v', type: 'line', x1: vx, y1: vy - 12, x2: vx, y2: vy + 12, width: 1, color: R_color, thin: true }
+    ],
+    remove: []
+  });
+
+  steps.push({
+    add: [{ id: 'vaxis', type: 'line', x1: vx, y1: vy - 40,
+            x2: vx, y2: Math.min(H - 15, bottomFrontY + 40),
+            width: 1, color: '#777', thin: true }],
+    remove: []
+  });
+
+  steps.push({
+    add: [{ id: 'bf_c', type: 'line',
+            x1: sqB.a.x - 25, y1: bottomFrontY, x2: sqB.b.x + 25, y2: bottomFrontY,
+            width: 0.9, color: '#999', thin: true }],
+    remove: []
+  });
+
+  steps.push({
+    add: [{ id: 'bf', type: 'line',
+            x1: sqB.a.x, y1: bottomFrontY, x2: sqB.b.x, y2: bottomFrontY,
+            width: 3.2, color: T_color, thin: false }],
+    remove: []
+  });
+
+  steps.push({
+    add: [{ id: 'brace_L', type: 'brace',
+            x1: sqB.a.x, x2: vx, y: bottomFrontY + 8, height: 18, color: R_color }],
+    remove: []
+  });
+  steps.push({
+    add: [{ id: 'brace_R', type: 'brace',
+            x1: vx, x2: sqB.b.x, y: bottomFrontY + 8, height: 18, color: R_color }],
+    remove: []
+  });
+  steps.push({ add: [], remove: ['brace_L', 'brace_R'] });
+
+  steps.push({
+    add: [
+      { id: 'psl_L', type: 'line', x1: sqB.a.x, y1: sqB.a.y, x2: vx, y2: vy,
+        width: 0.9, color: '#888', thin: true, extendBy: 25 },
+      { id: 'psl_R', type: 'line', x1: sqB.b.x, y1: sqB.b.y, x2: vx, y2: vy,
+        width: 0.9, color: '#888', thin: true, extendBy: 25 }
+    ],
+    remove: []
+  });
+
+  steps.push({
+    add: [{ id: 'bb_c', type: 'line',
+            x1: sqB.c.x - 25, y1: bottomBackY, x2: sqB.d.x + 25, y2: bottomBackY,
+            width: 0.9, color: '#999', thin: true }],
+    remove: []
+  });
+
+  steps.push({
+    add: [{ id: 'bb', type: 'line',
+            x1: sqB.c.x, y1: bottomBackY, x2: sqB.d.x, y2: bottomBackY,
+            width: 3.2, color: T_color, thin: false }],
+    remove: []
+  });
+
+  steps.push({
+    add: [
+      { id: 'sqb_side_l', type: 'line', x1: sqB.a.x, y1: sqB.a.y, x2: sqB.c.x, y2: sqB.c.y,
+        width: 3.2, color: T_color, thin: false },
+      { id: 'sqb_side_r', type: 'line', x1: sqB.b.x, y1: sqB.b.y, x2: sqB.d.x, y2: sqB.d.y,
+        width: 3.2, color: T_color, thin: false }
+    ],
+    remove: []
+  });
+
+  steps.push({
+    add: [
+      { id: 'diag1', type: 'line', x1: sqB.a.x, y1: sqB.a.y, x2: sqB.d.x, y2: sqB.d.y,
+        width: 0.9, color: '#888', thin: true, extendBy: 18 },
+      { id: 'diag2', type: 'line', x1: sqB.b.x, y1: sqB.b.y, x2: sqB.c.x, y2: sqB.c.y,
+        width: 0.9, color: '#888', thin: true, extendBy: 18 }
+    ],
+    remove: []
+  });
+
+  const diagB = getDiagInt(sqB);
+  const cyB = sqB.c.y;
+  const d1B = diagB.y - cyB;
+  const eyB = eB.ey;
+  const dmidB = eyB - cyB;
+
+  steps.push({
+    add: [{ id: 'axis_b', type: 'line',
+            x1: vx - frontW * 0.6, y1: diagB.y, x2: vx + frontW * 0.6, y2: diagB.y,
+            width: 1.2, color: AX_color, thin: true, extendBy: 15 }],
+    remove: []
+  });
+
+  if (isSecond) {
+    steps.push({
+      add: [
+        { id: 'diag_mark_b', type: 'dot', x: vx, y: diagB.y, r: 2.6, color: R_color },
+        { id: 'vbrace1_b', type: 'vbrace', x: vx, y1: cyB, y2: diagB.y,
+          width: 12, direction: 1, color: R_color, thickness: 1.4 }
+      ],
+      remove: []
+    });
+
+    steps.push({
+      add: [{ id: 'vbrace2_b', type: 'vbrace', x: vx, y1: diagB.y, y2: diagB.y + d1B,
+          width: 12, direction: 1, color: R_color, thickness: 1.4 }],
+      remove: ['vbrace1_b']
+    });
+
+    steps.push({
+      add: [{ id: 'true_mid_b', type: 'dot', x: vx, y: eyB, r: 2.8, color: R_color }],
+      remove: ['vbrace2_b', 'diag_mark_b']
+    });
+
+    steps.push({
+      add: [{ id: 'vbrace3_b', type: 'vbrace', x: vx, y1: cyB, y2: eyB,
+          width: 12, direction: 1, color: R_color, thickness: 1.4 }],
+      remove: []
+    });
+
+    steps.push({
+      add: [{ id: 'vbrace4_b', type: 'vbrace', x: vx, y1: eyB, y2: eyB + dmidB,
+          width: 12, direction: 1, color: R_color, thickness: 1.4 }],
+      remove: ['vbrace3_b']
+    });
+
+    steps.push({
+      add: [{ id: 'true_axis_b', type: 'line',
+          x1: vx - eB.rx - 15, y1: eyB, x2: vx + eB.rx + 15, y2: eyB,
+          width: 1.3, color: R_color, thin: false }],
+      remove: ['vbrace4_b']
+    });
+  }
+
+  steps.push({
+    add: [{ id: 'ell_b', type: 'ellipse',
+            cx: eB.ex, cy: eB.ey, rx: eB.rx, ry: eB.ry,
+            width: 2.5, color: B_color, fillAlpha: 0.07 }],
+    remove: []
+  });
+
+  const frontTopY = sqT.a.y - 20;
+  const backTopY = Math.min(sqT.c.y, sqT.d.y) - 20;
+  steps.push({
+    add: [
+      { id: 'up_l', type: 'line', x1: sqB.a.x, y1: bottomFrontY, x2: sqB.a.x, y2: frontTopY,
+        width: 0.9, color: '#888', thin: true },
+      { id: 'up_r', type: 'line', x1: sqB.b.x, y1: bottomFrontY, x2: sqB.b.x, y2: frontTopY,
+        width: 0.9, color: '#888', thin: true }
+    ],
+    remove: []
+  });
+
+  steps.push({
+    add: [{ id: 'tf_c', type: 'line',
+            x1: sqT.a.x - 25, y1: topFrontY, x2: sqT.b.x + 25, y2: topFrontY,
+            width: 0.9, color: '#999', thin: true }],
+    remove: []
+  });
+
+  steps.push({
+    add: [{ id: 'tf', type: 'line',
+            x1: sqT.a.x, y1: sqT.a.y, x2: sqT.b.x, y2: sqT.b.y,
+            width: 3.2, color: T_color, thin: false }],
+    remove: []
+  });
+
+  steps.push({
+    add: [
+      { id: 'tsl_L', type: 'line', x1: sqT.a.x, y1: sqT.a.y, x2: vx, y2: vy,
+        width: 0.9, color: '#888', thin: true, extendBy: 25 },
+      { id: 'tsl_R', type: 'line', x1: sqT.b.x, y1: sqT.b.y, x2: vx, y2: vy,
+        width: 0.9, color: '#888', thin: true, extendBy: 25 }
+    ],
+    remove: []
+  });
+
+  steps.push({
+    add: [
+      { id: 'back_up_l', type: 'line', x1: sqB.c.x, y1: sqB.c.y,
+        x2: sqT.c.x, y2: backTopY, width: 0.9, color: '#888', thin: true },
+      { id: 'back_up_r', type: 'line', x1: sqB.d.x, y1: sqB.d.y,
+        x2: sqT.d.x, y2: backTopY, width: 0.9, color: '#888', thin: true }
+    ],
+    remove: []
+  });
+
+  steps.push({
+    add: [{ id: 'tb_c', type: 'line',
+            x1: sqT.c.x - 25, y1: sqT.c.y, x2: sqT.d.x + 25, y2: sqT.d.y,
+            width: 0.9, color: '#999', thin: true }],
+    remove: []
+  });
+
+  steps.push({
+    add: [{ id: 'tb', type: 'line',
+            x1: sqT.c.x, y1: sqT.c.y, x2: sqT.d.x, y2: sqT.d.y,
+            width: 3.2, color: T_color, thin: false }],
+    remove: []
+  });
+
+  steps.push({
+    add: [
+      { id: 'sqt_side_l', type: 'line', x1: sqT.a.x, y1: sqT.a.y, x2: sqT.c.x, y2: sqT.c.y,
+        width: 3.2, color: T_color, thin: false },
+      { id: 'sqt_side_r', type: 'line', x1: sqT.b.x, y1: sqT.b.y, x2: sqT.d.x, y2: sqT.d.y,
+        width: 3.2, color: T_color, thin: false }
+    ],
+    remove: []
+  });
+
+  steps.push({
+    add: [
+      { id: 'tdiag1', type: 'line', x1: sqT.a.x, y1: sqT.a.y, x2: sqT.d.x, y2: sqT.d.y,
+        width: 0.9, color: '#888', thin: true, extendBy: 18 },
+      { id: 'tdiag2', type: 'line', x1: sqT.b.x, y1: sqT.b.y, x2: sqT.c.x, y2: sqT.c.y,
+        width: 0.9, color: '#888', thin: true, extendBy: 18 }
+    ],
+    remove: []
+  });
+
+  const diagT = getDiagInt(sqT);
+  const cyT = sqT.c.y;
+  const d1T = diagT.y - cyT;
+  const eyT = eT.ey;
+  const dmidT = eyT - cyT;
+
+  steps.push({
+    add: [{ id: 'axis_t', type: 'line',
+            x1: vx - frontW * 0.55, y1: diagT.y, x2: vx + frontW * 0.55, y2: diagT.y,
+            width: 1.2, color: AX_color, thin: true, extendBy: 15 }],
+    remove: []
+  });
+
+  if (isSecond) {
+    steps.push({
+      add: [
+        { id: 'diag_mark_t', type: 'dot', x: vx, y: diagT.y, r: 2.6, color: R_color },
+        { id: 'vbrace1_t', type: 'vbrace', x: vx, y1: cyT, y2: diagT.y,
+          width: 12, direction: 1, color: R_color, thickness: 1.4 }
+      ],
+      remove: []
+    });
+
+    steps.push({
+      add: [{ id: 'vbrace2_t', type: 'vbrace', x: vx, y1: diagT.y, y2: diagT.y + d1T,
+          width: 12, direction: 1, color: R_color, thickness: 1.4 }],
+      remove: ['vbrace1_t']
+    });
+
+    steps.push({
+      add: [{ id: 'true_mid_t', type: 'dot', x: vx, y: eyT, r: 2.8, color: R_color }],
+      remove: ['vbrace2_t', 'diag_mark_t']
+    });
+
+    steps.push({
+      add: [{ id: 'vbrace3_t', type: 'vbrace', x: vx, y1: cyT, y2: eyT,
+          width: 12, direction: 1, color: R_color, thickness: 1.4 }],
+      remove: []
+    });
+
+    steps.push({
+      add: [{ id: 'vbrace4_t', type: 'vbrace', x: vx, y1: eyT, y2: eyT + dmidT,
+          width: 12, direction: 1, color: R_color, thickness: 1.4 }],
+      remove: ['vbrace3_t']
+    });
+
+    steps.push({
+      add: [{ id: 'true_axis_t', type: 'line',
+          x1: vx - eT.rx - 15, y1: eyT, x2: vx + eT.rx + 15, y2: eyT,
+          width: 1.3, color: R_color, thin: false }],
+      remove: ['vbrace4_t']
+    });
+  }
+
+  steps.push({
+    add: [{ id: 'ell_t', type: 'ellipse',
+            cx: eT.ex, cy: eT.ey, rx: eT.rx, ry: eT.ry,
+            width: 2.5, color: B_color, fillAlpha: 0.07 }],
+    remove: []
+  });
+
+  let cylL, cylR;
+  if (isSecond) {
+    cylL = { x1: eB.ex - eB.rx, y1: eB.ey, x2: eT.ex - eT.rx, y2: eT.ey };
+    cylR = { x1: eB.ex + eB.rx, y1: eB.ey, x2: eT.ex + eT.rx, y2: eT.ey };
+  } else {
+    const yb = diagB.y;
+    const yt = diagT.y;
+    const dyb = (yb - eB.ey) / eB.ry;
+    const dyt = (yt - eT.ey) / eT.ry;
+    const sqb = Math.sqrt(Math.max(0, 1 - dyb * dyb));
+    const sqt = Math.sqrt(Math.max(0, 1 - dyt * dyt));
+    const xbL = eB.ex - eB.rx * sqb;
+    const xbR = eB.ex + eB.rx * sqb;
+    const xtL = eT.ex - eT.rx * sqt;
+    const xtR = eT.ex + eT.rx * sqt;
+    cylL = { x1: xbL, y1: yb, x2: xtL, y2: yt };
+    cylR = { x1: xbR, y1: yb, x2: xtR, y2: yt };
+  }
+
+  steps.push({
+    add: [
+      { id: 'cyl_L', type: 'line',
+        x1: cylL.x1, y1: cylL.y1, x2: cylL.x2, y2: cylL.y2,
+        width: 3.2, color: T_color, thin: false },
+      { id: 'cyl_R', type: 'line',
+        x1: cylR.x1, y1: cylR.y1, x2: cylR.x2, y2: cylR.y2,
+        width: 3.2, color: T_color, thin: false }
+    ],
+    remove: []
+  });
+
+  steps.push({
+    add: [],
+    remove: ['bf', 'bb', 'tf', 'tb', 'sqb_side_l', 'sqb_side_r', 'sqt_side_l', 'sqt_side_r']
+  });
+
+  if (isSecond) {
+    steps.push({
+      add: [
+        { id: 'red_wall_L', type: 'line',
+          x1: eB.ex - eB.rx, y1: eB.ey, x2: eT.ex - eT.rx, y2: eT.ey,
+          width: 1.4, color: R_color, thin: false },
+        { id: 'red_wall_R', type: 'line',
+          x1: eB.ex + eB.rx, y1: eB.ey, x2: eT.ex + eT.rx, y2: eT.ey,
+          width: 1.4, color: R_color, thin: false }
+      ],
+      remove: []
+    });
+  }
+
+  document.getElementById('step-total').textContent = steps.length;
+  const animSlider = document.getElementById('anim-slider');
+  if (animSlider) animSlider.max = steps.length;
+}
+
+// ============================================================
+// Рисование
+// ============================================================
+function drawItem(def, progress) {
+  if (progress <= 0) return;
+  switch (def.type) {
+    case 'line': drawLine(def, progress); break;
+    case 'dot': drawDot(def, progress); break;
+    case 'brace': drawBrace(def, progress); break;
+    case 'vbrace': drawVBrace(def, progress); break;
+    case 'ellipse': drawEllipseItem(def, progress); break;
+  }
+}
+
+function drawLine(def, progress) {
+  let { x1, y1, x2, y2 } = def;
+  if (def.extendBy) {
+    const len = Math.hypot(x2 - x1, y2 - y1);
+    if (len > 0.01) {
+      const ex = (x2 - x1) / len * def.extendBy;
+      const ey = (y2 - y1) / len * def.extendBy;
+      x1 -= ex; y1 -= ey; x2 += ex; y2 += ey;
+    }
+  }
+  const ex = x1 + (x2 - x1) * progress;
+  const ey = y1 + (y2 - y1) * progress;
+  ctx.strokeStyle = def.color;
+  ctx.lineWidth = def.width * lineMultiplier;
+  ctx.lineCap = 'round';
+  ctx.lineJoin = 'round';
+  ctx.beginPath();
+  ctx.moveTo(x1, y1);
+  ctx.lineTo(ex, ey);
+  ctx.stroke();
+}
+
+function drawDot(def, progress) {
+  const r = def.r * progress * lineMultiplier;
+  ctx.fillStyle = def.color;
+  ctx.beginPath();
+  ctx.arc(def.x, def.y, r, 0, Math.PI * 2);
+  ctx.fill();
+}
+
+function drawBrace(def, progress) {
+  const { x1, x2, y, height, color } = def;
+  const thickness = (def.thickness || 1.3) * lineMultiplier;
+  const xm = (x1 + x2) / 2;
+  const w = (x2 - x1) * 0.1;
+  const totalLen = (x2 - x1) + height * 2 + w * 4;
+
+  ctx.strokeStyle = color;
+  ctx.lineWidth = thickness;
+  ctx.lineCap = 'round';
+  ctx.lineJoin = 'round';
+  ctx.setLineDash([totalLen * progress, totalLen]);
+  ctx.lineDashOffset = 0;
+  ctx.beginPath();
+  ctx.moveTo(x1, y);
+  ctx.quadraticCurveTo(x1, y + height / 2, x1 + w, y + height / 2);
+  ctx.lineTo(xm - w, y + height / 2);
+  ctx.quadraticCurveTo(xm, y + height / 2, xm, y + height);
+  ctx.quadraticCurveTo(xm, y + height / 2, xm + w, y + height / 2);
+  ctx.lineTo(x2 - w, y + height / 2);
+  ctx.quadraticCurveTo(x2, y + height / 2, x2, y);
+  ctx.stroke();
+  ctx.setLineDash([]);
+}
+
+function drawVBrace(def, progress) {
+  const { x, y1, y2, width, color } = def;
+  const thickness = (def.thickness || 1.3) * lineMultiplier;
+  const direction = def.direction || 1;
+  const ym = (y1 + y2) / 2;
+  const d = direction * width;
+  const w2 = Math.min(width, Math.abs(y2 - y1) * 0.3);
+  const totalLen = Math.abs(y2 - y1) + width * 2;
+
+  ctx.strokeStyle = color;
+  ctx.lineWidth = thickness;
+  ctx.lineCap = 'round';
+  ctx.lineJoin = 'round';
+  ctx.setLineDash([totalLen * progress, totalLen]);
+  ctx.lineDashOffset = 0;
+  ctx.beginPath();
+  ctx.moveTo(x, y1);
+  ctx.quadraticCurveTo(x + d / 2, y1, x + d / 2, y1 + w2);
+  ctx.lineTo(x + d / 2, ym - w2);
+  ctx.quadraticCurveTo(x + d / 2, ym, x + d, ym);
+  ctx.quadraticCurveTo(x + d / 2, ym, x + d / 2, ym + w2);
+  ctx.lineTo(x + d / 2, y2 - w2);
+  ctx.quadraticCurveTo(x + d / 2, y2, x, y2);
+  ctx.stroke();
+  ctx.setLineDash([]);
+}
+
+function drawEllipseItem(def, progress) {
+  if (def.fillAlpha && progress > 0.6) {
+    const a = def.fillAlpha * (progress - 0.6) / 0.4;
+    ctx.fillStyle = def.color;
+    ctx.globalAlpha = a;
+    ctx.beginPath();
+    ctx.ellipse(def.cx, def.cy, def.rx, def.ry, 0, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.globalAlpha = 1;
+  }
+  const start = -Math.PI / 2;
+  const end = start + Math.PI * 2 * progress;
+  ctx.strokeStyle = def.color;
+  ctx.lineWidth = def.width * lineMultiplier;
+  ctx.lineCap = 'round';
+  ctx.beginPath();
+  ctx.ellipse(def.cx, def.cy, def.rx, def.ry, 0, start, end);
+  ctx.stroke();
+  ctx.globalAlpha = 0.3;
+  ctx.lineWidth = def.width * lineMultiplier * 1.5;
+  ctx.beginPath();
+  ctx.ellipse(def.cx, def.cy, def.rx + 0.5, def.ry + 0.5, 0, start, end);
+  ctx.stroke();
+  ctx.globalAlpha = 1;
+}
+
+function draw() {
+  ctx.clearRect(0, 0, W, H);
+  for (const id in state) {
+    const { def, progress } = state[id];
+    if (progress > 0) drawItem(def, progress);
+  }
+}
+
+// ============================================================
+// Состояние
+// ============================================================
+function rebuildState() {
+  state = {};
+  for (let i = 0; i < currentStep; i++) {
+    const trans = steps[i];
+    for (const item of trans.add) {
+      state[item.id] = { def: item, progress: 1 };
+    }
+    for (const id of trans.remove) {
+      delete state[id];
+    }
+  }
+}
+
+function goForward() {
+  if (anim || currentStep >= steps.length) return;
+  const trans = steps[currentStep];
+  for (const item of trans.add) {
+    state[item.id] = { def: item, progress: 0, adding: true };
+  }
+  for (const id of trans.remove) {
+    if (state[id]) state[id].removing = true;
+  }
+  anim = { startTime: performance.now(), duration: 650 };
+  currentStep++;
+  updateUI();
+}
+
+function goBack() {
+  if (anim || currentStep <= 0) return;
+  currentStep--;
+  rebuildState();
+  updateUI();
+}
+
+function jumpToStep(newStep) {
+  if (anim) {
+    for (const id in state) {
+      if (state[id].removing) delete state[id];
+      else if (state[id].adding) {
+        state[id].progress = 1;
+        state[id].adding = false;
+      }
+    }
+    anim = null;
+  }
+  currentStep = Math.max(0, Math.min(steps.length, newStep));
+  rebuildState();
+  updateUI();
+  draw();
+}
+
+function updateUI() {
+  document.getElementById('back').disabled = (currentStep <= 0);
+  document.getElementById('forward').disabled = (currentStep >= steps.length);
+  document.getElementById('step-current').textContent = currentStep;
+  const animSlider = document.getElementById('anim-slider');
+  if (animSlider) animSlider.value = currentStep;
+}
+
+// ============================================================
+// Анимация
+// ============================================================
+function animate() {
+  if (anim) {
+    const t = Math.min(1, (performance.now() - anim.startTime) / anim.duration);
+    for (const id in state) {
+      const s = state[id];
+      if (s.adding) s.progress = t;
+      else if (s.removing) s.progress = 1 - t;
+    }
+    if (t >= 1) {
+      for (const id in state) {
+        if (state[id].removing) delete state[id];
+        else if (state[id].adding) {
+          state[id].progress = 1;
+          state[id].adding = false;
+        }
+      }
+      anim = null;
+    }
+  }
+  draw();
+  requestAnimationFrame(animate);
+}
+
+// ============================================================
+// Смена способа
+// ============================================================
+function setMethod(isSecond) {
+  isSecondMethod = isSecond;
+  currentStep = 0;
+  state = {};
+  anim = null;
+  buildSteps(isSecond);
+  rebuildState();
+  updateUI();
+  draw();
+}
+
+// ============================================================
+// Обновление геометрии
+// ============================================================
+function updateGeometryFromFactors() {
+  if (anim) {
+    for (const id in state) {
+      if (state[id].removing) delete state[id];
+      else if (state[id].adding) {
+        state[id].progress = 1;
+        state[id].adding = false;
+      }
+    }
+    anim = null;
+  }
+  initGeometry();
+  buildSteps(isSecondMethod);
+  rebuildState();
+  updateUI();
+  positionEllipseHandle();
+  draw();
+}
+
+function positionEllipseHandle() {
+  const handle = document.getElementById('ellipse-handle');
+  if (!handle || !eB) return;
+  const size = Math.min(90, Math.max(56, frontW * 0.7));
+  handle.style.width = size + 'px';
+  handle.style.height = size + 'px';
+  handle.style.left = vx + 'px';
+  handle.style.top = eB.ey + 'px';
+}
+
+// ============================================================
+// Режим настроек
+// ============================================================
+window.toggleSettings = function () {
+  document.body.classList.toggle('settings-open');
+  const isOpen = document.body.classList.contains('settings-open');
+
+  if (isOpen) {
+    document.getElementById('thickness-slider').value = lineMultiplier;
+    document.getElementById('height-slider').value = Math.round(cylHeightFactor * 100);
+    positionEllipseHandle();
+  }
+};
+
+// ============================================================
+// Обработчики
+// ============================================================
+document.getElementById('forward').addEventListener('click', goForward);
+document.getElementById('back').addEventListener('click', goBack);
+
+document.getElementById('method2').addEventListener('change', (e) => {
+  setMethod(e.target.checked);
+});
+
+document.getElementById('thickness-slider').addEventListener('input', (e) => {
+  lineMultiplier = parseFloat(e.target.value);
+  localStorage.setItem('cylThickness', lineMultiplier);
+  draw();
+});
+
+document.getElementById('height-slider').addEventListener('input', (e) => {
+  cylHeightFactor = parseInt(e.target.value) / 100;
+  localStorage.setItem('cylHeight', cylHeightFactor);
+
+  const minDist = Math.max(MIN_DIST, cylHeightFactor + MIN_DIST_OFFSET);
+  if (distFactor < minDist) {
+    distFactor = minDist;
+    localStorage.setItem('cylDist', distFactor);
+  }
+
+  updateGeometryFromFactors();
+});
+
+document.getElementById('anim-slider').addEventListener('input', (e) => {
+  jumpToStep(parseInt(e.target.value));
+});
+
+// Перетаскивание ручки на нижнем эллипсе
+(function setupHandleDrag() {
+  const handle = document.getElementById('ellipse-handle');
+  let handleDrag = null;
+
+  handle.addEventListener('pointerdown', (e) => {
+    e.preventDefault();
+    try { handle.setPointerCapture(e.pointerId); } catch (err) {}
+    handleDrag = {
+      startY: e.clientY,
+      startDistFactor: distFactor
+    };
+  });
+
+  handle.addEventListener('pointermove', (e) => {
+    if (!handleDrag) return;
+    e.preventDefault();
+    const dy = e.clientY - handleDrag.startY;
+    let newDist = handleDrag.startDistFactor + dy / H;
+
+    const minDist = Math.max(MIN_DIST, cylHeightFactor + MIN_DIST_OFFSET);
+    newDist = Math.max(minDist, Math.min(MAX_DIST, newDist));
+
+    if (Math.abs(newDist - distFactor) < 0.001) return;
+    distFactor = newDist;
+    localStorage.setItem('cylDist', distFactor);
+    updateGeometryFromFactors();
+  });
+
+  handle.addEventListener('pointerup', () => { handleDrag = null; });
+  handle.addEventListener('pointercancel', () => { handleDrag = null; });
+})();
+
+// ============================================================
+// Ресайз
+// ============================================================
+let resizeTimer = null;
+window.addEventListener('resize', () => {
+  clearTimeout(resizeTimer);
+  resizeTimer = setTimeout(() => {
+    initGeometry();
+    buildSteps(isSecondMethod);
+    rebuildState();
+    updateUI();
+    positionEllipseHandle();
+    draw();
+  }, 150);
+});
+
+// ============================================================
+// Запуск
+// ============================================================
+initGeometry();
+buildSteps(true);
+rebuildState();
+updateUI();
+positionEllipseHandle();
+draw();
+animate();
+</script>
+</body>
+</html>

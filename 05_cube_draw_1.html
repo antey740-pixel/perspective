@@ -1,0 +1,982 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>Куб в перспективе — пошаговое построение</title>
+<style>
+  * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+  html, body { margin: 0; padding: 0; height: 100%; overflow: hidden; }
+  body {
+    background: #e8e2d4;
+    font-family: 'Georgia', 'Times New Roman', serif;
+    color: #333;
+    touch-action: manipulation;
+  }
+  #paper {
+    display: block;
+    width: 100%;
+    height: 100%;
+    background: radial-gradient(ellipse at 30% 20%, #fbf7ef 0%, #f4ede0 60%, #ece4d2 100%);
+  }
+
+  #controls {
+    position: fixed;
+    bottom: 18px;
+    left: 50%;
+    transform: translateX(-50%);
+    display: flex;
+    gap: 8px;
+    align-items: center;
+    background: rgba(250, 246, 238, 0.96);
+    border: 1px solid rgba(80, 60, 40, 0.18);
+    padding: 8px 12px;
+    border-radius: 40px;
+    box-shadow: 0 6px 24px rgba(60, 40, 20, 0.12);
+    z-index: 10;
+    backdrop-filter: blur(8px);
+    -webkit-backdrop-filter: blur(8px);
+  }
+
+  body.settings-open #controls {
+    background: rgba(238, 242, 250, 0.96);
+    border-color: #a8b4c8;
+    box-shadow: 0 6px 24px rgba(70, 85, 120, 0.18);
+  }
+
+  #controls button,
+  #controls .btn-home {
+    font-family: inherit;
+    font-size: 15px;
+    font-weight: 500;
+    padding: 10px 16px;
+    border: 1.5px solid #c0b8a8;
+    background: #fdfaf4;
+    color: #444;
+    border-radius: 22px;
+    cursor: pointer;
+    transition: all 0.15s;
+    min-width: 80px;
+    text-decoration: none;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    line-height: 1;
+  }
+  #controls button:hover:not(:disabled),
+  #controls .btn-home:hover { background: #f5efe0; border-color: #a09080; }
+  #controls button:active:not(:disabled),
+  #controls .btn-home:active { transform: scale(0.97); }
+  #controls button:disabled { opacity: 0.35; cursor: not-allowed; }
+
+  #controls .btn-home {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 12px;
+    font-weight: 500;
+    color: #555;
+    padding: 6px 12px;
+    border-radius: 20px;
+    background: rgba(180, 170, 155, 0.15);
+    border: 1px solid transparent;
+    cursor: pointer;
+    text-decoration: none;
+    transition: border-color 0.2s;
+    line-height: 1;
+    min-width: 0;
+  }
+  #controls .btn-home:hover {
+    border-color: #c0b8a8;
+    background: rgba(180, 170, 155, 0.15);
+  }
+  #controls .btn-home:active { transform: scale(0.97); }
+
+  #gear-btn, #close-settings {
+    min-width: 44px !important;
+    padding: 10px 12px !important;
+    font-size: 18px !important;
+  }
+  #gear-btn { background: #fdfaf4; }
+  #close-settings { background: #fdfaf4; color: #c33; }
+
+  .settings-only { display: none !important; }
+  body.settings-open .settings-only { display: flex !important; }
+  body.settings-open .settings-only.btn-like { display: inline-flex !important; }
+  body.settings-open .normal-only { display: none !important; }
+
+  #step-info {
+    position: fixed;
+    top: 14px;
+    left: 50%;
+    transform: translateX(-50%);
+    font-size: 12px;
+    color: #999;
+    font-family: -apple-system, 'Segoe UI', sans-serif;
+    background: rgba(250, 246, 238, 0.85);
+    padding: 5px 14px;
+    border-radius: 14px;
+    pointer-events: none;
+    opacity: 0.85;
+    transition: opacity 0.3s;
+    z-index: 5;
+  }
+  body.settings-open #step-info { display: none; }
+
+  .side-control {
+    position: fixed;
+    top: 50%;
+    transform: translateY(-50%);
+    height: 60vh;
+    max-height: 450px;
+    width: 44px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: space-between;
+    background: rgba(250, 246, 238, 0.95);
+    padding: 12px 0;
+    border-radius: 22px;
+    box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+    border: 1px solid #c0b8a8;
+    z-index: 20;
+  }
+
+  .side-control .side-icon {
+    font-size: 16px;
+    color: #444;
+    font-weight: bold;
+    line-height: 1;
+    user-select: none;
+  }
+
+  .side-control input[type="range"] {
+    -webkit-appearance: none;
+    appearance: none;
+    width: 55vh;
+    max-width: 400px;
+    height: 6px;
+    background: #d0c8b8;
+    border-radius: 3px;
+    outline: none;
+    cursor: pointer;
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%) rotate(-90deg);
+  }
+
+  .side-control input[type="range"]::-webkit-slider-thumb {
+    -webkit-appearance: none;
+    appearance: none;
+    width: 32px;
+    height: 32px;
+    border-radius: 50%;
+    cursor: pointer;
+    box-shadow: 0 2px 6px rgba(0,0,0,0.3);
+    border: 2px solid white;
+    transition: transform 0.1s;
+  }
+  .side-control input[type="range"]::-webkit-slider-thumb:active {
+    transform: scale(1.1);
+  }
+  .side-control input[type="range"]::-moz-range-thumb {
+    width: 32px;
+    height: 32px;
+    border-radius: 50%;
+    cursor: pointer;
+    box-shadow: 0 2px 6px rgba(0,0,0,0.3);
+    border: 2px solid white;
+  }
+
+  #thickness-control { left: 8px; }
+  #thickness-slider::-webkit-slider-thumb { background: #5a9b5a; }
+  #thickness-slider::-moz-range-thumb { background: #5a9b5a; }
+
+  #anim-control { right: 8px; }
+  #anim-slider::-webkit-slider-thumb { background: #333; }
+  #anim-slider::-moz-range-thumb { background: #333; }
+
+  .ellipse-handle {
+    position: fixed;
+    border-radius: 50%;
+    background: rgba(255, 180, 80, 0.28);
+    border: 2px dashed rgba(200, 130, 40, 0.65);
+    transform: translate(-50%, -50%);
+    cursor: grab;
+    z-index: 15;
+    touch-action: none;
+    display: none;
+    align-items: center;
+    justify-content: center;
+    user-select: none;
+    pointer-events: none;
+  }
+  body.settings-open .ellipse-handle {
+    display: flex !important;
+    pointer-events: auto;
+  }
+  .ellipse-handle:active {
+    cursor: grabbing;
+    background: rgba(255, 180, 80, 0.5);
+  }
+  .ellipse-handle::after {
+    content: '↕';
+    font-size: 26px;
+    color: rgba(180, 100, 30, 0.85);
+    font-weight: 700;
+    line-height: 1;
+  }
+
+  @media (max-width: 520px) {
+    #controls { padding: 6px 8px; gap: 5px; bottom: 12px; }
+    #controls button,
+    #controls .btn-home {
+      padding: 8px 10px;
+      font-size: 13px;
+      min-width: 0;
+    }
+    #controls .btn-home { padding: 6px 10px; font-size: 11px; }
+    #gear-btn, #close-settings {
+      min-width: 36px !important;
+      padding: 8px 8px !important;
+      font-size: 16px !important;
+    }
+    #step-info { font-size: 11px; }
+
+    .side-control { padding: 10px 0; width: 40px; }
+    .side-control .side-icon { font-size: 14px; }
+    .side-control input[type="range"] { width: 50vh; }
+    .side-control input[type="range"]::-webkit-slider-thumb { width: 28px; height: 28px; }
+    .side-control input[type="range"]::-moz-range-thumb { width: 28px; height: 28px; }
+
+    #thickness-control { left: 6px; }
+    #anim-control { right: 6px; }
+  }
+</style>
+</head>
+<body>
+<canvas id="paper"></canvas>
+<div id="step-info">Шаг <b id="step-current">0</b> / <b id="step-total">0</b></div>
+
+<div id="anim-control" class="side-control normal-only">
+  <div class="side-icon">⏭</div>
+  <input type="range" id="anim-slider" min="0" max="10" step="1" value="0">
+  <div class="side-icon">⏮</div>
+</div>
+
+<div id="thickness-control" class="side-control settings-only">
+  <div class="side-icon">━</div>
+  <input type="range" id="thickness-slider" min="1.0" max="4.0" step="0.1" value="1.0">
+  <div class="side-icon">─</div>
+</div>
+
+<div id="ellipse-handle" class="ellipse-handle"></div>
+
+<div id="controls">
+  <a href="index.html" class="btn-home" title="Вернуться на главную страницу">Меню</a>
+  <button id="back" class="normal-only" disabled>Назад</button>
+  <button id="forward" class="normal-only">Вперёд</button>
+  <button id="gear-btn" class="normal-only" title="Настройки" onclick="toggleSettings()">⚙️</button>
+  <button id="close-settings" class="settings-only btn-like" title="Закрыть настройки" onclick="toggleSettings()">✕</button>
+</div>
+
+<script>
+// ============================================================
+// Состояние
+// ============================================================
+const canvas = document.getElementById('paper');
+const ctx = canvas.getContext('2d');
+
+let W, H, vx, vy;
+let sqB, sqT;
+let bottomFrontY, bottomBackY, topFrontY, topBackY;
+let frontW;
+
+let steps = [];
+let state = {};
+let currentStep = 0;
+let anim = null;
+let lineMultiplier = 1.0;
+
+let distFactor = 0.40;
+const DEPTH_FACTOR = 0.15;
+const WIDTH_FACTOR = 0.44;
+const MAX_WIDTH_PX = 300;
+const MIN_DIST_OFFSET = 0.12;
+const MIN_DIST = 0.24;
+const MAX_DIST = 0.70;
+
+// Загрузка
+(function loadFactors() {
+  const sD = localStorage.getItem('cubeDist');
+  const sT = localStorage.getItem('cubeThickness');
+
+  if (sD !== null) {
+    const v = parseFloat(sD);
+    if (!isNaN(v)) distFactor = v;
+  }
+  if (sT !== null) {
+    const v = parseFloat(sT);
+    if (!isNaN(v) && v >= 1.0) lineMultiplier = v;
+  }
+
+  document.getElementById('thickness-slider').value = lineMultiplier;
+})();
+
+// ============================================================
+// Геометрия
+// ============================================================
+function initGeometry() {
+  const dpr = window.devicePixelRatio || 1;
+  W = window.innerWidth;
+  H = window.innerHeight;
+  canvas.width = W * dpr;
+  canvas.height = H * dpr;
+  canvas.style.width = W + 'px';
+  canvas.style.height = H + 'px';
+  ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+
+  vx = W / 2;
+  vy = H * 0.24;
+
+  const maxByScreen = Math.min(W * WIDTH_FACTOR, MAX_WIDTH_PX);
+  const maxByHeight = H * (MAX_DIST - MIN_DIST_OFFSET);
+  frontW = Math.min(maxByScreen, maxByHeight);
+
+  const minDistForCube = frontW / H + MIN_DIST_OFFSET;
+  if (distFactor < minDistForCube) {
+    distFactor = minDistForCube;
+    localStorage.setItem('cubeDist', distFactor);
+  }
+  distFactor = Math.max(MIN_DIST, Math.min(MAX_DIST, distFactor));
+
+  bottomFrontY = vy + H * distFactor;
+  bottomBackY = bottomFrontY - H * DEPTH_FACTOR;
+
+  const fl = vx - frontW / 2;
+  const fr = vx + frontW / 2;
+  const t_back = (bottomBackY - vy) / (bottomFrontY - vy);
+  const bl = vx + (fl - vx) * t_back;
+  const br = vx + (fr - vx) * t_back;
+
+  sqB = {
+    a: { x: fl, y: bottomFrontY },
+    b: { x: fr, y: bottomFrontY },
+    c: { x: bl, y: bottomBackY },
+    d: { x: br, y: bottomBackY }
+  };
+
+  const cubeH = frontW;
+  const aT = { x: sqB.a.x, y: sqB.a.y - cubeH };
+  const bT = { x: sqB.b.x, y: sqB.b.y - cubeH };
+
+  const cT = intersectVertLine(sqB.c.x, aT, { x: vx, y: vy });
+  const dT = intersectVertLine(sqB.d.x, bT, { x: vx, y: vy });
+
+  sqT = { a: aT, b: bT, c: cT, d: dT };
+  topFrontY = sqT.a.y;
+  topBackY = sqT.c.y;
+}
+
+function intersectVertLine(x, p1, p2) {
+  if (Math.abs(p2.x - p1.x) < 1e-6) return { x: x, y: p1.y };
+  const t = (x - p1.x) / (p2.x - p1.x);
+  return { x: x, y: p1.y + (p2.y - p1.y) * t };
+}
+
+function getDiagInt(s) {
+  const ax = s.a.x, ay = s.a.y;
+  const bx = s.b.x, by = s.b.y;
+  const cx = s.c.x, cy = s.c.y;
+  const dx = s.d.x, dy = s.d.y;
+  const dax = dx - ax, day = dy - ay;
+  const dbx = cx - bx, dby = cy - by;
+  const denom = dax * dby - day * dbx;
+  if (Math.abs(denom) < 1e-6) return { x: vx, y: (ay + cy) / 2 };
+  const t = ((bx - ax) * dby - (by - ay) * dbx) / denom;
+  return { x: ax + t * dax, y: ay + t * day };
+}
+
+// ============================================================
+// Построение шагов
+// ============================================================
+function buildSteps() {
+  steps = [];
+  const H_color = '#5a5040';
+  const T_color = '#2a2a2a';
+  const R_color = '#c33';
+  const AX_color = '#666';
+
+  // 1. Горизонт
+  steps.push({
+    add: [{ id: 'horizon', type: 'line', x1: 15, y1: vy, x2: W - 15, y2: vy,
+            width: 1.1, color: H_color, thin: true }],
+    remove: []
+  });
+
+  // 2. Точка схода
+  steps.push({
+    add: [
+      { id: 'vp_dot', type: 'dot', x: vx, y: vy, r: 3.5, color: R_color },
+      { id: 'vp_h', type: 'line', x1: vx - 12, y1: vy, x2: vx + 12, y2: vy, width: 1, color: R_color, thin: true },
+      { id: 'vp_v', type: 'line', x1: vx, y1: vy - 12, x2: vx, y2: vy + 12, width: 1, color: R_color, thin: true }
+    ],
+    remove: []
+  });
+
+  // 3. Вертикальная ось
+  steps.push({
+    add: [{ id: 'vaxis', type: 'line', x1: vx, y1: vy - 40,
+            x2: vx, y2: Math.min(H - 15, bottomFrontY + 40),
+            width: 1, color: '#777', thin: true }],
+    remove: []
+  });
+
+  // 4. Тонкая направляющая нижней передней
+  steps.push({
+    add: [{ id: 'bf_c', type: 'line',
+            x1: sqB.a.x - 25, y1: bottomFrontY, x2: sqB.b.x + 25, y2: bottomFrontY,
+            width: 0.9, color: '#999', thin: true }],
+    remove: []
+  });
+
+  // 5. Жирная нижняя передняя
+  steps.push({
+    add: [{ id: 'bf', type: 'line',
+            x1: sqB.a.x, y1: bottomFrontY, x2: sqB.b.x, y2: bottomFrontY,
+            width: 3.2, color: T_color, thin: false }],
+    remove: []
+  });
+
+  // 6. Красная скобка — левая половина
+  steps.push({
+    add: [{ id: 'brace_L', type: 'brace',
+            x1: sqB.a.x, x2: vx, y: bottomFrontY + 8, height: 18, color: R_color }],
+    remove: []
+  });
+
+  // 7. Красная скобка — правая половина
+  steps.push({
+    add: [{ id: 'brace_R', type: 'brace',
+            x1: vx, x2: sqB.b.x, y: bottomFrontY + 8, height: 18, color: R_color }],
+    remove: []
+  });
+
+  // 8. Скобки исчезают
+  steps.push({ add: [], remove: ['brace_L', 'brace_R'] });
+
+  // 9. Тонкие боковые стороны передней грани
+  const frontTopY_ext = sqT.a.y - 20;
+  const backTopY_ext = Math.min(sqT.c.y, sqT.d.y) - 20;
+  steps.push({
+    add: [
+      { id: 'up_l', type: 'line', x1: sqB.a.x, y1: bottomFrontY, x2: sqB.a.x, y2: frontTopY_ext,
+        width: 0.9, color: '#888', thin: true },
+      { id: 'up_r', type: 'line', x1: sqB.b.x, y1: bottomFrontY, x2: sqB.b.x, y2: frontTopY_ext,
+        width: 0.9, color: '#888', thin: true }
+    ],
+    remove: []
+  });
+
+  // 10. Красная дуга — показывает, что ширина = высоте передней грани
+  steps.push({
+    add: [{ id: 'red_arc', type: 'arc',
+            cx: sqB.a.x, cy: sqB.a.y, radius: frontW,
+            startAngle: 0, endAngle: -Math.PI / 2, anticlockwise: true,
+            color: R_color, width: 1.6 }],
+    remove: []
+  });
+
+  // 11. Тонкая направляющая верхней передней
+  steps.push({
+    add: [{ id: 'tf_c', type: 'line',
+            x1: sqT.a.x - 25, y1: topFrontY, x2: sqT.b.x + 25, y2: topFrontY,
+            width: 0.9, color: '#999', thin: true }],
+    remove: []
+  });
+
+  // 12. Жирная обводка передней грани (и убираем дугу)
+  steps.push({
+    add: [
+      { id: 'cube_vert_fl', type: 'line',
+        x1: sqB.a.x, y1: sqB.a.y, x2: sqT.a.x, y2: sqT.a.y,
+        width: 3.2, color: T_color, thin: false },
+      { id: 'cube_vert_fr', type: 'line',
+        x1: sqB.b.x, y1: sqB.b.y, x2: sqT.b.x, y2: sqT.b.y,
+        width: 3.2, color: T_color, thin: false },
+      { id: 'tf', type: 'line',
+        x1: sqT.a.x, y1: sqT.a.y, x2: sqT.b.x, y2: sqT.b.y,
+        width: 3.2, color: T_color, thin: false }
+    ],
+    remove: ['red_arc']
+  });
+
+  // 13. Линия к точке схода — нижняя левая
+  steps.push({
+    add: [{ id: 'vpl_bot_L', type: 'line', x1: sqB.a.x, y1: sqB.a.y, x2: vx, y2: vy,
+            width: 0.9, color: '#888', thin: true, extendBy: 25 }],
+    remove: []
+  });
+
+  // 14. Линия к точке схода — нижняя правая
+  steps.push({
+    add: [{ id: 'vpl_bot_R', type: 'line', x1: sqB.b.x, y1: sqB.b.y, x2: vx, y2: vy,
+            width: 0.9, color: '#888', thin: true, extendBy: 25 }],
+    remove: []
+  });
+
+  // 15. Линия к точке схода — верхняя левая
+  steps.push({
+    add: [{ id: 'vpl_top_L', type: 'line', x1: sqT.a.x, y1: sqT.a.y, x2: vx, y2: vy,
+            width: 0.9, color: '#888', thin: true, extendBy: 25 }],
+    remove: []
+  });
+
+  // 16. Линия к точке схода — верхняя правая
+  steps.push({
+    add: [{ id: 'vpl_top_R', type: 'line', x1: sqT.b.x, y1: sqT.b.y, x2: vx, y2: vy,
+            width: 0.9, color: '#888', thin: true, extendBy: 25 }],
+    remove: []
+  });
+
+  // 17. Тонкая направляющая задней нижней
+  steps.push({
+    add: [{ id: 'bb_c', type: 'line',
+            x1: sqB.c.x - 25, y1: bottomBackY, x2: sqB.d.x + 25, y2: bottomBackY,
+            width: 0.9, color: '#999', thin: true }],
+    remove: []
+  });
+
+  // 18. Тонкая задняя нижняя
+  steps.push({
+    add: [{ id: 'bb_guide', type: 'line',
+            x1: sqB.c.x, y1: bottomBackY, x2: sqB.d.x, y2: bottomBackY,
+            width: 0.9, color: '#999', thin: true }],
+    remove: []
+  });
+
+  // 19. Диагональ 1 нижней
+  steps.push({
+    add: [{ id: 'diag1', type: 'line', x1: sqB.a.x, y1: sqB.a.y, x2: sqB.d.x, y2: sqB.d.y,
+            width: 0.9, color: '#888', thin: true, extendBy: 18 }],
+    remove: []
+  });
+
+  // 20. Диагональ 2 нижней
+  steps.push({
+    add: [{ id: 'diag2', type: 'line', x1: sqB.b.x, y1: sqB.b.y, x2: sqB.c.x, y2: sqB.c.y,
+            width: 0.9, color: '#888', thin: true, extendBy: 18 }],
+    remove: []
+  });
+
+  // 21. Горизонтальная ось нижней
+  const diagB = getDiagInt(sqB);
+  steps.push({
+    add: [{ id: 'axis_b', type: 'line',
+            x1: vx - frontW * 0.6, y1: diagB.y, x2: vx + frontW * 0.6, y2: diagB.y,
+            width: 1.2, color: AX_color, thin: true, extendBy: 15 }],
+    remove: []
+  });
+
+  // 22. Жирная обводка нижней грани
+  steps.push({
+    add: [
+      { id: 'bb', type: 'line',
+        x1: sqB.c.x, y1: bottomBackY, x2: sqB.d.x, y2: bottomBackY,
+        width: 3.2, color: T_color, thin: false },
+      { id: 'sqb_side_l', type: 'line', x1: sqB.a.x, y1: sqB.a.y, x2: sqB.c.x, y2: sqB.c.y,
+        width: 3.2, color: T_color, thin: false },
+      { id: 'sqb_side_r', type: 'line', x1: sqB.b.x, y1: sqB.b.y, x2: sqB.d.x, y2: sqB.d.y,
+        width: 3.2, color: T_color, thin: false }
+    ],
+    remove: ['bb_guide']
+  });
+
+  // 23. Тонкие задние вертикали вверх
+  steps.push({
+    add: [
+      { id: 'back_up_l', type: 'line', x1: sqB.c.x, y1: sqB.c.y,
+        x2: sqT.c.x, y2: backTopY_ext, width: 0.9, color: '#888', thin: true },
+      { id: 'back_up_r', type: 'line', x1: sqB.d.x, y1: sqB.d.y,
+        x2: sqT.d.x, y2: backTopY_ext, width: 0.9, color: '#888', thin: true }
+    ],
+    remove: []
+  });
+
+  // 24. Тонкая направляющая задней верхней
+  steps.push({
+    add: [{ id: 'tb_c', type: 'line',
+            x1: sqT.c.x - 25, y1: sqT.c.y, x2: sqT.d.x + 25, y2: sqT.d.y,
+            width: 0.9, color: '#999', thin: true }],
+    remove: []
+  });
+
+  // 25. Тонкая задняя верхняя
+  steps.push({
+    add: [{ id: 'tb_guide', type: 'line',
+            x1: sqT.c.x, y1: sqT.c.y, x2: sqT.d.x, y2: sqT.d.y,
+            width: 0.9, color: '#999', thin: true }],
+    remove: []
+  });
+
+  // 26. Диагональ 1 верхней
+  steps.push({
+    add: [{ id: 'tdiag1', type: 'line', x1: sqT.a.x, y1: sqT.a.y, x2: sqT.d.x, y2: sqT.d.y,
+            width: 0.9, color: '#888', thin: true, extendBy: 18 }],
+    remove: []
+  });
+
+  // 27. Диагональ 2 верхней
+  steps.push({
+    add: [{ id: 'tdiag2', type: 'line', x1: sqT.b.x, y1: sqT.b.y, x2: sqT.c.x, y2: sqT.c.y,
+            width: 0.9, color: '#888', thin: true, extendBy: 18 }],
+    remove: []
+  });
+
+  // 28. Горизонтальная ось верхней
+  const diagT = getDiagInt(sqT);
+  steps.push({
+    add: [{ id: 'axis_t', type: 'line',
+            x1: vx - frontW * 0.55, y1: diagT.y, x2: vx + frontW * 0.55, y2: diagT.y,
+            width: 1.2, color: AX_color, thin: true, extendBy: 15 }],
+    remove: []
+  });
+
+  // 29. Жирная обводка верхней грани
+  steps.push({
+    add: [
+      { id: 'tb', type: 'line',
+        x1: sqT.c.x, y1: sqT.c.y, x2: sqT.d.x, y2: sqT.d.y,
+        width: 3.2, color: T_color, thin: false },
+      { id: 'sqt_side_l', type: 'line', x1: sqT.a.x, y1: sqT.a.y, x2: sqT.c.x, y2: sqT.c.y,
+        width: 3.2, color: T_color, thin: false },
+      { id: 'sqt_side_r', type: 'line', x1: sqT.b.x, y1: sqT.b.y, x2: sqT.d.x, y2: sqT.d.y,
+        width: 3.2, color: T_color, thin: false }
+    ],
+    remove: ['tb_guide']
+  });
+
+  // 30. Задние вертикальные рёбра куба
+  steps.push({
+    add: [
+      { id: 'cube_vert_bl', type: 'line',
+        x1: sqB.c.x, y1: sqB.c.y, x2: sqT.c.x, y2: sqT.c.y,
+        width: 3.2, color: T_color, thin: false },
+      { id: 'cube_vert_br', type: 'line',
+        x1: sqB.d.x, y1: sqB.d.y, x2: sqT.d.x, y2: sqT.d.y,
+        width: 3.2, color: T_color, thin: false }
+    ],
+    remove: []
+  });
+
+  document.getElementById('step-total').textContent = steps.length;
+  const animSlider = document.getElementById('anim-slider');
+  if (animSlider) animSlider.max = steps.length;
+}
+
+// ============================================================
+// Рисование
+// ============================================================
+function drawItem(def, progress) {
+  if (progress <= 0) return;
+  switch (def.type) {
+    case 'line': drawLine(def, progress); break;
+    case 'dot': drawDot(def, progress); break;
+    case 'brace': drawBrace(def, progress); break;
+    case 'arc': drawArcItem(def, progress); break;
+  }
+}
+
+function drawLine(def, progress) {
+  let { x1, y1, x2, y2 } = def;
+
+  if (def.extendBy) {
+    const len = Math.hypot(x2 - x1, y2 - y1);
+    if (len > 0.01) {
+      const ex = (x2 - x1) / len * def.extendBy;
+      const ey = (y2 - y1) / len * def.extendBy;
+      x1 -= ex; y1 -= ey; x2 += ex; y2 += ey;
+    }
+  }
+
+  const ex = x1 + (x2 - x1) * progress;
+  const ey = y1 + (y2 - y1) * progress;
+
+  ctx.strokeStyle = def.color;
+  ctx.lineWidth = def.width * lineMultiplier;
+  ctx.lineCap = 'round';
+  ctx.lineJoin = 'round';
+  ctx.beginPath();
+  ctx.moveTo(x1, y1);
+  ctx.lineTo(ex, ey);
+  ctx.stroke();
+}
+
+function drawDot(def, progress) {
+  const r = def.r * progress * lineMultiplier;
+  ctx.fillStyle = def.color;
+  ctx.beginPath();
+  ctx.arc(def.x, def.y, r, 0, Math.PI * 2);
+  ctx.fill();
+}
+
+function drawBrace(def, progress) {
+  const { x1, x2, y, height, color } = def;
+  const thickness = (def.thickness || 1.3) * lineMultiplier;
+  const xm = (x1 + x2) / 2;
+  const w = (x2 - x1) * 0.1;
+  const totalLen = (x2 - x1) + height * 2 + w * 4;
+
+  ctx.strokeStyle = color;
+  ctx.lineWidth = thickness;
+  ctx.lineCap = 'round';
+  ctx.lineJoin = 'round';
+  ctx.setLineDash([totalLen * progress, totalLen]);
+  ctx.lineDashOffset = 0;
+  ctx.beginPath();
+  ctx.moveTo(x1, y);
+  ctx.quadraticCurveTo(x1, y + height / 2, x1 + w, y + height / 2);
+  ctx.lineTo(xm - w, y + height / 2);
+  ctx.quadraticCurveTo(xm, y + height / 2, xm, y + height);
+  ctx.quadraticCurveTo(xm, y + height / 2, xm + w, y + height / 2);
+  ctx.lineTo(x2 - w, y + height / 2);
+  ctx.quadraticCurveTo(x2, y + height / 2, x2, y);
+  ctx.stroke();
+  ctx.setLineDash([]);
+}
+
+function drawArcItem(def, progress) {
+  const { cx, cy, radius, startAngle, endAngle, anticlockwise, color, width } = def;
+  const angleRange = endAngle - startAngle;
+  const currentEnd = startAngle + angleRange * progress;
+
+  ctx.strokeStyle = color;
+  ctx.lineWidth = width * lineMultiplier;
+  ctx.lineCap = 'round';
+  ctx.lineJoin = 'round';
+  ctx.beginPath();
+  ctx.arc(cx, cy, radius, startAngle, currentEnd, !!anticlockwise);
+  ctx.stroke();
+}
+
+function draw() {
+  ctx.clearRect(0, 0, W, H);
+  for (const id in state) {
+    const { def, progress } = state[id];
+    if (progress > 0) drawItem(def, progress);
+  }
+}
+
+// ============================================================
+// Состояние и переходы
+// ============================================================
+function rebuildState() {
+  state = {};
+  for (let i = 0; i < currentStep; i++) {
+    const trans = steps[i];
+    for (const item of trans.add) {
+      state[item.id] = { def: item, progress: 1 };
+    }
+    for (const id of trans.remove) {
+      delete state[id];
+    }
+  }
+}
+
+function goForward() {
+  if (anim || currentStep >= steps.length) return;
+  const trans = steps[currentStep];
+  for (const item of trans.add) {
+    state[item.id] = { def: item, progress: 0, adding: true };
+  }
+  for (const id of trans.remove) {
+    if (state[id]) state[id].removing = true;
+  }
+  anim = { startTime: performance.now(), duration: 650 };
+  currentStep++;
+  updateUI();
+}
+
+function goBack() {
+  if (anim || currentStep <= 0) return;
+  currentStep--;
+  rebuildState();
+  updateUI();
+}
+
+function jumpToStep(newStep) {
+  if (anim) {
+    for (const id in state) {
+      if (state[id].removing) delete state[id];
+      else if (state[id].adding) {
+        state[id].progress = 1;
+        state[id].adding = false;
+      }
+    }
+    anim = null;
+  }
+  currentStep = Math.max(0, Math.min(steps.length, newStep));
+  rebuildState();
+  updateUI();
+  draw();
+}
+
+function updateUI() {
+  document.getElementById('back').disabled = (currentStep <= 0);
+  document.getElementById('forward').disabled = (currentStep >= steps.length);
+  document.getElementById('step-current').textContent = currentStep;
+  const animSlider = document.getElementById('anim-slider');
+  if (animSlider) animSlider.value = currentStep;
+}
+
+// ============================================================
+// Анимация
+// ============================================================
+function animate() {
+  if (anim) {
+    const t = Math.min(1, (performance.now() - anim.startTime) / anim.duration);
+    for (const id in state) {
+      const s = state[id];
+      if (s.adding) s.progress = t;
+      else if (s.removing) s.progress = 1 - t;
+    }
+    if (t >= 1) {
+      for (const id in state) {
+        if (state[id].removing) delete state[id];
+        else if (state[id].adding) {
+          state[id].progress = 1;
+          state[id].adding = false;
+        }
+      }
+      anim = null;
+    }
+  }
+  draw();
+  requestAnimationFrame(animate);
+}
+
+// ============================================================
+// Обновление геометрии
+// ============================================================
+function updateGeometryFromFactors() {
+  if (anim) {
+    for (const id in state) {
+      if (state[id].removing) delete state[id];
+      else if (state[id].adding) {
+        state[id].progress = 1;
+        state[id].adding = false;
+      }
+    }
+    anim = null;
+  }
+  initGeometry();
+  buildSteps();
+  rebuildState();
+  updateUI();
+  positionEllipseHandle();
+  draw();
+}
+
+function positionEllipseHandle() {
+  const handle = document.getElementById('ellipse-handle');
+  if (!handle || !sqB) return;
+  const size = Math.min(90, Math.max(56, frontW * 0.7));
+  handle.style.width = size + 'px';
+  handle.style.height = size + 'px';
+  handle.style.left = vx + 'px';
+  const midY = (bottomFrontY + bottomBackY) / 2;
+  handle.style.top = midY + 'px';
+}
+
+// ============================================================
+// Режим настроек
+// ============================================================
+window.toggleSettings = function () {
+  document.body.classList.toggle('settings-open');
+  const isOpen = document.body.classList.contains('settings-open');
+
+  if (isOpen) {
+    document.getElementById('thickness-slider').value = lineMultiplier;
+    positionEllipseHandle();
+  }
+};
+
+// ============================================================
+// Обработчики
+// ============================================================
+document.getElementById('forward').addEventListener('click', goForward);
+document.getElementById('back').addEventListener('click', goBack);
+
+document.getElementById('thickness-slider').addEventListener('input', (e) => {
+  lineMultiplier = parseFloat(e.target.value);
+  localStorage.setItem('cubeThickness', lineMultiplier);
+  draw();
+});
+
+document.getElementById('anim-slider').addEventListener('input', (e) => {
+  jumpToStep(parseInt(e.target.value));
+});
+
+// Перетаскивание ручки
+(function setupHandleDrag() {
+  const handle = document.getElementById('ellipse-handle');
+  let handleDrag = null;
+
+  handle.addEventListener('pointerdown', (e) => {
+    e.preventDefault();
+    try { handle.setPointerCapture(e.pointerId); } catch (err) {}
+    handleDrag = {
+      startY: e.clientY,
+      startDistFactor: distFactor
+    };
+  });
+
+  handle.addEventListener('pointermove', (e) => {
+    if (!handleDrag) return;
+    e.preventDefault();
+    const dy = e.clientY - handleDrag.startY;
+    let newDist = handleDrag.startDistFactor + dy / H;
+
+    const minDist = Math.max(MIN_DIST, frontW / H + MIN_DIST_OFFSET);
+    newDist = Math.max(minDist, Math.min(MAX_DIST, newDist));
+
+    if (Math.abs(newDist - distFactor) < 0.001) return;
+    distFactor = newDist;
+    localStorage.setItem('cubeDist', distFactor);
+    updateGeometryFromFactors();
+  });
+
+  handle.addEventListener('pointerup', () => { handleDrag = null; });
+  handle.addEventListener('pointercancel', () => { handleDrag = null; });
+})();
+
+// ============================================================
+// Ресайз
+// ============================================================
+let resizeTimer = null;
+window.addEventListener('resize', () => {
+  clearTimeout(resizeTimer);
+  resizeTimer = setTimeout(() => {
+    initGeometry();
+    buildSteps();
+    rebuildState();
+    updateUI();
+    positionEllipseHandle();
+    draw();
+  }, 150);
+});
+
+// ============================================================
+// Запуск
+// ============================================================
+initGeometry();
+buildSteps();
+rebuildState();
+updateUI();
+positionEllipseHandle();
+draw();
+animate();
+</script>
+</body>
+</html>
