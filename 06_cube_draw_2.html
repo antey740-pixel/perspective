@@ -5,8 +5,23 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
 <title>Куб в двухточечной перспективе — пошаговое построение</title>
 <style>
+  :root {
+    --ui-scale: 1;
+    --handle-size: calc(64px * var(--ui-scale));
+    --handle-font: calc(22px * var(--ui-scale));
+    --btn-font: calc(15px * var(--ui-scale));
+    --btn-pad-y: calc(10px * var(--ui-scale));
+    --btn-pad-x: calc(16px * var(--ui-scale));
+    --btn-minw: calc(80px * var(--ui-scale));
+    --side-width: calc(44px * var(--ui-scale));
+    --side-height: calc(min(60vh, 450px) * var(--ui-scale));
+    --side-icon-font: calc(16px * var(--ui-scale));
+    --side-pad: calc(12px * var(--ui-scale));
+    --slider-len: calc(var(--side-height) - calc(80px * var(--ui-scale)));
+    --info-font: calc(12px * var(--ui-scale));
+  }
   * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
-  html, body { margin: 0; padding: 0; height: 100%; overflow: hidden; }
+  html, body { margin: 0; padding: 0; height: 100dvh; overflow: hidden; }
   body {
     background: #e8e2d4;
     font-family: 'Georgia', 'Times New Roman', serif;
@@ -22,16 +37,16 @@
 
   #controls {
     position: fixed;
-    bottom: 18px;
+    bottom: calc(18px * var(--ui-scale));
     left: 50%;
     transform: translateX(-50%);
     display: flex;
-    gap: 8px;
+    gap: calc(8px * var(--ui-scale));
     align-items: center;
     background: rgba(250, 246, 238, 0.96);
     border: 1px solid rgba(80, 60, 40, 0.18);
-    padding: 8px 12px;
-    border-radius: 40px;
+    padding: calc(8px * var(--ui-scale)) calc(12px * var(--ui-scale));
+    border-radius: calc(40px * var(--ui-scale));
     box-shadow: 0 6px 24px rgba(60, 40, 20, 0.12);
     z-index: 10;
     backdrop-filter: blur(8px);
@@ -47,16 +62,16 @@
   #controls button,
   #controls .btn-home {
     font-family: inherit;
-    font-size: 15px;
+    font-size: var(--btn-font);
     font-weight: 500;
-    padding: 10px 16px;
+    padding: var(--btn-pad-y) var(--btn-pad-x);
     border: 1.5px solid #c0b8a8;
     background: #fdfaf4;
     color: #444;
-    border-radius: 22px;
+    border-radius: calc(22px * var(--ui-scale));
     cursor: pointer;
     transition: all 0.15s;
-    min-width: 80px;
+    min-width: var(--btn-minw);
     text-decoration: none;
     display: inline-flex;
     align-items: center;
@@ -70,10 +85,10 @@
   #controls button:disabled { opacity: 0.35; cursor: not-allowed; }
 
   #controls .btn-home {
-    font-size: 12px;
+    font-size: calc(12px * var(--ui-scale));
     color: #555;
-    padding: 6px 12px;
-    border-radius: 20px;
+    padding: calc(6px * var(--ui-scale)) calc(12px * var(--ui-scale));
+    border-radius: calc(20px * var(--ui-scale));
     background: rgba(180, 170, 155, 0.15);
     border: 1px solid transparent;
     min-width: 0;
@@ -83,12 +98,12 @@
     background: rgba(180, 170, 155, 0.15);
   }
 
-  #gear-btn, #close-settings {
-    min-width: 44px !important;
-    padding: 10px 12px !important;
-    font-size: 18px !important;
+  #gear-btn, #close-settings, #fullscreen-btn {
+    min-width: calc(44px * var(--ui-scale)) !important;
+    padding: var(--btn-pad-y) calc(12px * var(--ui-scale)) !important;
+    font-size: calc(18px * var(--ui-scale)) !important;
   }
-  #gear-btn { background: #fdfaf4; }
+  #gear-btn, #fullscreen-btn { background: #fdfaf4; }
   #close-settings { background: #fdfaf4; color: #c33; }
 
   .settings-only { display: none !important; }
@@ -96,17 +111,44 @@
   body.settings-open .settings-only.btn-like { display: inline-flex !important; }
   body.settings-open .normal-only { display: none !important; }
 
+  #ui-scale-wrapper {
+    display: none;
+    align-items: center;
+    gap: 8px;
+    margin: 0 8px;
+  }
+  body.settings-open #ui-scale-wrapper { display: flex; }
+  #ui-scale-wrapper span { font-size: calc(14px * var(--ui-scale)); color: #666; }
+  #ui-scale-slider {
+    -webkit-appearance: none;
+    width: calc(100px * var(--ui-scale));
+    height: calc(6px * var(--ui-scale));
+    background: #d0c8b8;
+    border-radius: 3px;
+    outline: none;
+  }
+  #ui-scale-slider::-webkit-slider-thumb {
+    -webkit-appearance: none;
+    width: calc(20px * var(--ui-scale));
+    height: calc(20px * var(--ui-scale));
+    border-radius: 50%;
+    background: #a8b4c8;
+    border: 2px solid white;
+    cursor: pointer;
+    box-shadow: 0 2px 6px rgba(0,0,0,0.3);
+  }
+
   #step-info {
     position: fixed;
-    top: 14px;
+    top: calc(14px * var(--ui-scale));
     left: 50%;
     transform: translateX(-50%);
-    font-size: 12px;
+    font-size: var(--info-font);
     color: #999;
     font-family: -apple-system, 'Segoe UI', sans-serif;
     background: rgba(250, 246, 238, 0.85);
-    padding: 5px 14px;
-    border-radius: 14px;
+    padding: calc(5px * var(--ui-scale)) calc(14px * var(--ui-scale));
+    border-radius: calc(14px * var(--ui-scale));
     pointer-events: none;
     opacity: 0.85;
     transition: opacity 0.3s;
@@ -118,23 +160,22 @@
     position: fixed;
     top: 50%;
     transform: translateY(-50%);
-    height: 60vh;
-    max-height: 450px;
-    width: 44px;
+    height: var(--side-height);
+    width: var(--side-width);
     display: flex;
     flex-direction: column;
     align-items: center;
     justify-content: space-between;
     background: rgba(250, 246, 238, 0.95);
-    padding: 12px 0;
-    border-radius: 22px;
+    padding: var(--side-pad) 0;
+    border-radius: calc(22px * var(--ui-scale));
     box-shadow: 0 4px 12px rgba(0,0,0,0.15);
     border: 1px solid #c0b8a8;
     z-index: 20;
   }
 
   .side-control .side-icon {
-    font-size: 16px;
+    font-size: var(--side-icon-font);
     color: #444;
     font-weight: bold;
     line-height: 1;
@@ -144,11 +185,10 @@
   .side-control input[type="range"] {
     -webkit-appearance: none;
     appearance: none;
-    width: 55vh;
-    max-width: 400px;
-    height: 6px;
+    width: var(--slider-len);
+    height: calc(6px * var(--ui-scale));
     background: #d0c8b8;
-    border-radius: 3px;
+    border-radius: calc(3px * var(--ui-scale));
     outline: none;
     cursor: pointer;
     position: absolute;
@@ -160,8 +200,8 @@
   .side-control input[type="range"]::-webkit-slider-thumb {
     -webkit-appearance: none;
     appearance: none;
-    width: 32px;
-    height: 32px;
+    width: calc(32px * var(--ui-scale));
+    height: calc(32px * var(--ui-scale));
     border-radius: 50%;
     cursor: pointer;
     box-shadow: 0 2px 6px rgba(0,0,0,0.3);
@@ -172,37 +212,37 @@
     transform: scale(1.1);
   }
   .side-control input[type="range"]::-moz-range-thumb {
-    width: 32px;
-    height: 32px;
+    width: calc(32px * var(--ui-scale));
+    height: calc(32px * var(--ui-scale));
     border-radius: 50%;
     cursor: pointer;
     box-shadow: 0 2px 6px rgba(0,0,0,0.3);
     border: 2px solid white;
   }
 
-  #thickness-control { left: 8px; }
+  #thickness-control { left: calc(8px * var(--ui-scale)); }
   #thickness-slider::-webkit-slider-thumb { background: #5a9b5a; }
   #thickness-slider::-moz-range-thumb { background: #5a9b5a; }
 
-  #anim-control { right: 8px; }
+  #anim-control { right: calc(8px * var(--ui-scale)); }
   #anim-slider::-webkit-slider-thumb { background: #333; }
   #anim-slider::-moz-range-thumb { background: #333; }
 
-  #cube-size-control { right: 8px; }
+  #cube-size-control { right: calc(8px * var(--ui-scale)); }
   #cube-size-slider::-webkit-slider-thumb { background: #7a5cc0; }
   #cube-size-slider::-moz-range-thumb { background: #7a5cc0; }
 
   .edit-handle {
     position: fixed;
-    width: 64px;
-    height: 64px;
+    width: var(--handle-size);
+    height: var(--handle-size);
     border-radius: 50%;
     background: rgba(80, 120, 200, 0.35);
-    border: 2px solid rgba(80, 120, 200, 0.65);
+    border: calc(2px * var(--ui-scale)) solid rgba(80, 120, 200, 0.65);
     display: none;
     align-items: center;
     justify-content: center;
-    font-size: 22px;
+    font-size: var(--handle-font);
     color: rgba(255,255,255,0.95);
     cursor: grab;
     user-select: none;
@@ -231,32 +271,22 @@
   .edit-handle-horizon:active { background: rgba(160, 100, 200, 0.55); }
 
   @media (max-width: 520px) {
-    #controls { padding: 6px 8px; gap: 5px; bottom: 12px; }
-    #controls button,
-    #controls .btn-home {
-      padding: 8px 10px;
-      font-size: 13px;
-      min-width: 0;
+    :root {
+      --handle-size: calc(56px * var(--ui-scale));
+      --handle-font: calc(20px * var(--ui-scale));
+      --btn-font: calc(13px * var(--ui-scale));
+      --side-width: calc(40px * var(--ui-scale));
+      --side-icon-font: calc(14px * var(--ui-scale));
+      --side-pad: calc(10px * var(--ui-scale));
+      --slider-len: calc(var(--side-height) - calc(60px * var(--ui-scale)));
+      --info-font: calc(11px * var(--ui-scale));
     }
-    #controls .btn-home { padding: 6px 10px; font-size: 11px; }
-    #gear-btn, #close-settings {
-      min-width: 36px !important;
-      padding: 8px 8px !important;
-      font-size: 16px !important;
-    }
-    #step-info { font-size: 11px; }
-
-    .side-control { padding: 10px 0; width: 40px; }
-    .side-control .side-icon { font-size: 14px; }
-    .side-control input[type="range"] { width: 50vh; }
-    .side-control input[type="range"]::-webkit-slider-thumb { width: 28px; height: 28px; }
-    .side-control input[type="range"]::-moz-range-thumb { width: 28px; height: 28px; }
-
-    #thickness-control { left: 6px; }
-    #anim-control { right: 6px; }
-    #cube-size-control { right: 6px; }
-
-    .edit-handle { width: 56px; height: 56px; font-size: 20px; }
+    #controls { padding: calc(6px * var(--ui-scale)) calc(8px * var(--ui-scale)); gap: calc(5px * var(--ui-scale)); }
+    #controls button, #controls .btn-home { padding: calc(8px * var(--ui-scale)) calc(10px * var(--ui-scale)); }
+    #gear-btn, #close-settings, #fullscreen-btn { padding: calc(8px * var(--ui-scale)) !important; }
+    #thickness-control { left: calc(6px * var(--ui-scale)); }
+    #anim-control { right: calc(6px * var(--ui-scale)); }
+    #cube-size-control { right: calc(6px * var(--ui-scale)); }
   }
 </style>
 </head>
@@ -289,8 +319,19 @@
 
 <div id="controls">
   <a href="index.html" class="btn-home" title="Вернуться на главную страницу">Меню</a>
+  
+  <div id="ui-scale-wrapper">
+    <span>А</span>
+    <input type="range" id="ui-scale-slider" min="0.6" max="1.6" step="0.05" value="1.0">
+    <span style="font-size: 1.4em;">А</span>
+  </div>
+
   <button id="back" class="normal-only" disabled>Назад</button>
   <button id="forward" class="normal-only">Вперёд</button>
+  
+  <!-- Убрали класс normal-only, чтобы кнопка была видна и в настройках -->
+  <button id="fullscreen-btn" title="На весь экран">⛶</button>
+  
   <button id="gear-btn" class="normal-only" title="Настройки" onclick="toggleSettings()">⚙️</button>
   <button id="close-settings" class="settings-only btn-like" title="Закрыть настройки" onclick="toggleSettings()">✕</button>
 </div>
@@ -322,6 +363,7 @@ let state = {};
 let currentStep = 0;
 let anim = null;
 let lineMultiplier = 1.0;
+let uiScale = 1.0;
 
 const THIN_TAIL = 14;
 const THIN_TAIL_VERT = 10;
@@ -333,6 +375,16 @@ const THIN_TAIL_VERT = 10;
     if (!isNaN(v) && v >= 1.0) lineMultiplier = v;
   }
   document.getElementById('thickness-slider').value = lineMultiplier;
+
+  const sU = localStorage.getItem('cube2ptUIScale');
+  if (sU !== null) {
+    const v = parseFloat(sU);
+    if (!isNaN(v) && v >= 0.6 && v <= 1.6) {
+      uiScale = v;
+      document.documentElement.style.setProperty('--ui-scale', uiScale);
+      document.getElementById('ui-scale-slider').value = uiScale;
+    }
+  }
 })();
 
 function computeKtheta() {
@@ -366,7 +418,6 @@ function getCubeScreenCenter() {
   };
 }
 
-// Не даёт зелёной ручке (и центру куба) уйти за край экрана
 function clampCubeToScreen() {
   const { k } = computeKtheta();
   if (k <= 0 || !isFinite(k)) return;
@@ -748,7 +799,7 @@ function drawBackgroundHint() {
   ctx.font = `italic ${fs}px Georgia, 'Times New Roman', serif`;
   ctx.textAlign = 'center';
   ctx.textBaseline = 'middle';
-  ctx.fillText('↻  Расположите телефон горизонтально', W / 2, H * 0.85);
+  ctx.fillText('↻  Расположите телефон горизонтально', W / 2, H * 0.80);
   ctx.restore();
 }
 
@@ -900,7 +951,6 @@ function applyVPChange(newVplX, newVprX) {
     cubeWX = (oldCenter.x - camX) * CAM_DIST / newK;
     cubeWY = CAM_HEIGHT - cubeSize / 2 + (vy - oldCenter.y) * CAM_DIST / newK;
   }
-  // На случай, если куб был у самого края — не даём VPs его вытолкнуть
   clampCubeToScreen();
 }
 
@@ -909,6 +959,7 @@ window.toggleSettings = function () {
   if (document.body.classList.contains('settings-open')) {
     document.getElementById('thickness-slider').value = lineMultiplier;
     document.getElementById('cube-size-slider').value = cubeSizeMultiplier;
+    document.getElementById('ui-scale-slider').value = uiScale;
     updateHandlePositions();
   }
 };
@@ -963,8 +1014,6 @@ setupHandleDrag('handle-vpr', (dx) => {
   }
 });
 
-// Куб — единственная ручка, которая двигает куб по экрану.
-// После каждого шага clampCubeToScreen не даёт ей уйти за край.
 setupHandleDrag('handle-cube', (dx, dy) => {
   const { k } = computeKtheta();
   if (k > 0) {
@@ -1013,6 +1062,13 @@ document.getElementById('thickness-slider').addEventListener('input', (e) => {
   draw();
 });
 
+document.getElementById('ui-scale-slider').addEventListener('input', (e) => {
+  uiScale = parseFloat(e.target.value);
+  document.documentElement.style.setProperty('--ui-scale', uiScale);
+  localStorage.setItem('cube2ptUIScale', uiScale);
+  updateHandlePositions();
+});
+
 document.getElementById('anim-slider').addEventListener('input', (e) => {
   jumpToStep(parseInt(e.target.value));
 });
@@ -1023,6 +1079,32 @@ document.getElementById('cube-size-slider').addEventListener('input', (e) => {
   cubeSize = Math.min(baseCubeSize * cubeSizeMultiplier, CAM_DIST * 0.8);
   cubeWY += (oldSize - cubeSize) / 2;
   updateAll();
+});
+
+// Fullscreen Logic
+const fullscreenBtn = document.getElementById('fullscreen-btn');
+fullscreenBtn.addEventListener('click', () => {
+  if (!document.fullscreenElement) {
+    document.documentElement.requestFullscreen().catch(err => {
+      console.log(`Error attempting to enable fullscreen: ${err.message}`);
+    });
+  } else {
+    document.exitFullscreen();
+  }
+});
+
+document.addEventListener('fullscreenchange', () => {
+  if (document.fullscreenElement) {
+    fullscreenBtn.textContent = '🗗';
+    fullscreenBtn.title = 'Выйти из полноэкранного режима';
+  } else {
+    fullscreenBtn.textContent = '⛶';
+    fullscreenBtn.title = 'На весь экран';
+  }
+  // Force a small delay to let the browser update the viewport size
+  setTimeout(() => {
+    window.dispatchEvent(new Event('resize'));
+  }, 100);
 });
 
 let resizeTimer = null;
