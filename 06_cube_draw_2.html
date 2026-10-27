@@ -70,27 +70,18 @@
   #controls button:disabled { opacity: 0.35; cursor: not-allowed; }
 
   #controls .btn-home {
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
     font-size: 12px;
-    font-weight: 500;
     color: #555;
     padding: 6px 12px;
     border-radius: 20px;
     background: rgba(180, 170, 155, 0.15);
     border: 1px solid transparent;
-    cursor: pointer;
-    text-decoration: none;
-    transition: border-color 0.2s;
-    line-height: 1;
     min-width: 0;
   }
   #controls .btn-home:hover {
     border-color: #c0b8a8;
     background: rgba(180, 170, 155, 0.15);
   }
-  #controls .btn-home:active { transform: scale(0.97); }
 
   #gear-btn, #close-settings {
     min-width: 44px !important;
@@ -197,6 +188,48 @@
   #anim-slider::-webkit-slider-thumb { background: #333; }
   #anim-slider::-moz-range-thumb { background: #333; }
 
+  #cube-size-control { right: 8px; }
+  #cube-size-slider::-webkit-slider-thumb { background: #7a5cc0; }
+  #cube-size-slider::-moz-range-thumb { background: #7a5cc0; }
+
+  .edit-handle {
+    position: fixed;
+    width: 64px;
+    height: 64px;
+    border-radius: 50%;
+    background: rgba(80, 120, 200, 0.35);
+    border: 2px solid rgba(80, 120, 200, 0.65);
+    display: none;
+    align-items: center;
+    justify-content: center;
+    font-size: 22px;
+    color: rgba(255,255,255,0.95);
+    cursor: grab;
+    user-select: none;
+    -webkit-user-select: none;
+    touch-action: none;
+    transform: translate(-50%, -50%);
+    z-index: 30;
+    box-shadow: 0 4px 16px rgba(40, 60, 120, 0.35);
+    font-family: -apple-system, 'Segoe UI', sans-serif;
+    font-weight: bold;
+    transition: background 0.15s, box-shadow 0.15s;
+    line-height: 1;
+    padding: 0;
+  }
+  body.settings-open .edit-handle { display: flex; }
+  .edit-handle:active {
+    cursor: grabbing;
+    background: rgba(80, 120, 200, 0.55);
+    box-shadow: 0 6px 20px rgba(40, 60, 120, 0.55);
+  }
+  .edit-handle-vp      { background: rgba(200, 80, 80, 0.35); border-color: rgba(200, 80, 80, 0.7); }
+  .edit-handle-vp:active { background: rgba(200, 80, 80, 0.55); }
+  .edit-handle-cube    { background: rgba(80, 160, 100, 0.35); border-color: rgba(80, 160, 100, 0.7); }
+  .edit-handle-cube:active { background: rgba(80, 160, 100, 0.55); }
+  .edit-handle-horizon { background: rgba(160, 100, 200, 0.35); border-color: rgba(160, 100, 200, 0.7); }
+  .edit-handle-horizon:active { background: rgba(160, 100, 200, 0.55); }
+
   @media (max-width: 520px) {
     #controls { padding: 6px 8px; gap: 5px; bottom: 12px; }
     #controls button,
@@ -221,12 +254,20 @@
 
     #thickness-control { left: 6px; }
     #anim-control { right: 6px; }
+    #cube-size-control { right: 6px; }
+
+    .edit-handle { width: 56px; height: 56px; font-size: 20px; }
   }
 </style>
 </head>
 <body>
 <canvas id="paper"></canvas>
 <div id="step-info">Шаг <b id="step-current">0</b> / <b id="step-total">0</b></div>
+
+<div id="handle-vpl"     class="edit-handle edit-handle-vp"      title="Точка схода VPL — влево/вправо">↔</div>
+<div id="handle-vpr"     class="edit-handle edit-handle-vp"      title="Точка схода VPR — влево/вправо">↔</div>
+<div id="handle-cube"    class="edit-handle edit-handle-cube"    title="Куб — перетащить">✥</div>
+<div id="handle-horizon" class="edit-handle edit-handle-horizon" title="Горизонт: ↕ — высота, ↔ — обе VPs">✛</div>
 
 <div id="anim-control" class="side-control normal-only">
   <div class="side-icon">⏭</div>
@@ -240,6 +281,12 @@
   <div class="side-icon">─</div>
 </div>
 
+<div id="cube-size-control" class="side-control settings-only">
+  <div class="side-icon">◼</div>
+  <input type="range" id="cube-size-slider" min="0.1" max="3.0" step="0.02" value="1.0">
+  <div class="side-icon">▪</div>
+</div>
+
 <div id="controls">
   <a href="index.html" class="btn-home" title="Вернуться на главную страницу">Меню</a>
   <button id="back" class="normal-only" disabled>Назад</button>
@@ -249,13 +296,24 @@
 </div>
 
 <script>
-// ============================================================
-// Состояние
-// ============================================================
+const CAM_DIST = 2.5;
+const CAM_HEIGHT = 1.5;
+
+const MIN_GAP = 40;
+let VP_MARGIN = 60;
+let H_MARGIN  = 40;
+
 const canvas = document.getElementById('paper');
 const ctx = canvas.getContext('2d');
 
-let W, H, vx, vy, Sz;
+let W, H, Sz, camX;
+let vy;
+let vplX, vprX;
+let cubeWX = 0, cubeWY = 0;
+let cubeSize = 1 / 1.5;
+let baseCubeSize = 1 / 1.5;
+let cubeSizeMultiplier = 1.0;
+
 let vpl, vpr;
 let a, A, b, B, c, C, d, D;
 
@@ -277,10 +335,75 @@ const THIN_TAIL_VERT = 10;
   document.getElementById('thickness-slider').value = lineMultiplier;
 })();
 
-// ============================================================
-// 3D-проекция куба
-// ============================================================
-function initGeometry() {
+function computeKtheta() {
+  const dL = camX - vplX;
+  const dR = vprX - camX;
+  if (dL <= 0 || dR <= 0) {
+    return { k: MIN_GAP, theta: Math.PI / 4 };
+  }
+  const k = Math.sqrt(dL * dR);
+  const theta = Math.atan(Math.sqrt(dR / dL));
+  return { k, theta };
+}
+
+function projectVertex(lx, ly, lz, k, theta) {
+  const cosR = Math.cos(theta);
+  const sinR = Math.sin(theta);
+  const wx = lx * cosR + lz * sinR + cubeWX;
+  const wz = -lx * sinR + lz * cosR + CAM_DIST;
+  const wy = ly + cubeWY;
+  return {
+    x: camX + k * wx / wz,
+    y: vy - k * (wy - CAM_HEIGHT) / wz
+  };
+}
+
+function getCubeScreenCenter() {
+  const { k } = computeKtheta();
+  return {
+    x: camX + k * cubeWX / CAM_DIST,
+    y: vy - k * (cubeWY + cubeSize / 2 - CAM_HEIGHT) / CAM_DIST
+  };
+}
+
+function updateGeometryFromState() {
+  const { k, theta } = computeKtheta();
+  const cosR = Math.cos(theta);
+  const sinR = Math.sin(theta);
+  const half = cubeSize / 2;
+
+  function corner(ix, iy, iz) {
+    const lx = ix === 0 ? -half : half;
+    const ly = iy === 0 ? 0 : cubeSize;
+    const lz = iz === 0 ? -half : half;
+    return projectVertex(lx, ly, lz, k, theta);
+  }
+
+  let minZ = Infinity;
+  let fKey = { ix: 0, iz: 0 };
+  for (let ix = 0; ix < 2; ix++) {
+    for (let iz = 0; iz < 2; iz++) {
+      const lx = ix === 0 ? -half : half;
+      const lz = iz === 0 ? -half : half;
+      const wz = -lx * sinR + lz * cosR + CAM_DIST;
+      if (wz < minZ) { minZ = wz; fKey = { ix, iz }; }
+    }
+  }
+
+  a = corner(fKey.ix, 0, fKey.iz);
+  A = corner(fKey.ix, 1, fKey.iz);
+  b = corner(1 - fKey.ix, 0, fKey.iz);
+  B = corner(1 - fKey.ix, 1, fKey.iz);
+  c = corner(fKey.ix, 0, 1 - fKey.iz);
+  C = corner(fKey.ix, 1, 1 - fKey.iz);
+  d = corner(1 - fKey.ix, 0, 1 - fKey.iz);
+  D = corner(1 - fKey.ix, 1, 1 - fKey.iz);
+
+  vpl = { x: vplX, y: vy };
+  vpr = { x: vprX, y: vy };
+}
+
+function setupCanvas() {
   const dpr = window.devicePixelRatio || 1;
   W = window.innerWidth;
   H = window.innerHeight;
@@ -289,72 +412,45 @@ function initGeometry() {
   canvas.style.width = W + 'px';
   canvas.style.height = H + 'px';
   ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
-
   Sz = Math.min(W, H);
-  vx = W / 2;
-  vy = H * 0.20;
-
-  const cubeSize = 1 / 1.5;
-  const camHeight = 1.5;
-  const camDist = 2.5;
-  const rotY = 36 * Math.PI / 180;
-  const offsetX = 0;
-
-  const fov = 50 * Math.PI / 180;
-  const f = 1 / Math.tan(fov / 2);
-  const scale = Sz * 0.30;
-
-  function project(P) {
-    return {
-      x: vx + scale * f * P.X / P.Z,
-      y: vy - scale * f * (P.Y - camHeight) / P.Z
-    };
-  }
-
-  const half = cubeSize / 2;
-  const cosR = Math.cos(rotY);
-  const sinR = Math.sin(rotY);
-
-  function worldCorner(ix, iy, iz) {
-    const lx = (ix === 0 ? -half : half);
-    const ly = (iy === 0 ? 0 : cubeSize);
-    const lz = (iz === 0 ? -half : half);
-    const rx = lx * cosR + lz * sinR;
-    const rz = -lx * sinR + lz * cosR;
-    return { X: offsetX + rx, Y: ly, Z: camDist + rz };
-  }
-
-  let minZ = Infinity;
-  let fKey = { ix: 0, iz: 0 };
-  for (let ix = 0; ix < 2; ix++) {
-    for (let iz = 0; iz < 2; iz++) {
-      const wc = worldCorner(ix, 0, iz);
-      if (wc.Z < minZ) {
-        minZ = wc.Z;
-        fKey = { ix, iz };
-      }
-    }
-  }
-
-  a = project(worldCorner(fKey.ix, 0, fKey.iz));
-  A = project(worldCorner(fKey.ix, 1, fKey.iz));
-
-  b = project(worldCorner(1 - fKey.ix, 0, fKey.iz));
-  B = project(worldCorner(1 - fKey.ix, 1, fKey.iz));
-
-  c = project(worldCorner(fKey.ix, 0, 1 - fKey.iz));
-  C = project(worldCorner(fKey.ix, 1, 1 - fKey.iz));
-
-  d = project(worldCorner(1 - fKey.ix, 0, 1 - fKey.iz));
-  D = project(worldCorner(1 - fKey.ix, 1, 1 - fKey.iz));
-
-  vpl = { x: vx - scale * f * (cosR / sinR), y: vy };
-  vpr = { x: vx + scale * f * (sinR / cosR), y: vy };
+  camX = W / 2;
+  VP_MARGIN = Math.max(30, Math.min(60, W * 0.06));
+  H_MARGIN  = Math.max(30, Math.min(50, H * 0.05));
 }
 
-// ============================================================
-// Построение шагов (24 шага)
-// ============================================================
+function initScene() {
+  setupCanvas();
+
+  vy = H * 0.20;
+
+  const theta0 = 36 * Math.PI / 180;
+  const tanT = Math.tan(theta0);
+  const cotT = 1 / tanT;
+
+  const kTarget = Sz * 0.30 * (1 / Math.tan(25 * Math.PI / 180));
+
+  const kMaxL = (camX - VP_MARGIN) / cotT;
+  const kMaxR = (W - camX - VP_MARGIN) / tanT;
+  const kMax = Math.min(kMaxL, kMaxR);
+
+  const kInit = Math.min(kTarget, kMax * 0.7);
+
+  vplX = camX - kInit * cotT;
+  vprX = camX + kInit * tanT;
+
+  const targetCubePx = Sz * 0.13;
+  cubeSize = targetCubePx * CAM_DIST / kInit;
+  cubeSize = Math.max(0.5, Math.min(1.2, cubeSize));
+
+  baseCubeSize = cubeSize;
+  cubeSizeMultiplier = 1.0;
+  const cubeSizeSlider = document.getElementById('cube-size-slider');
+  if (cubeSizeSlider) cubeSizeSlider.value = 1.0;
+
+  cubeWX = 0;
+  cubeWY = 0;
+}
+
 function buildSteps() {
   steps = [];
   const H_color = '#5a5040';
@@ -363,14 +459,12 @@ function buildSteps() {
   const THIN = 0.9;
   const DOT_R = 3;
 
-  // 1. Горизонт
   steps.push({
     add: [{ id: 'horizon', type: 'line', x1: 0, y1: vy, x2: W, y2: vy,
             width: 1.1, color: H_color, thin: true }],
     remove: []
   });
 
-  // 2. Длинная вертикальная ось
   steps.push({
     add: [{ id: 'vaxis_long', type: 'line',
             x1: a.x, y1: vy - 15, x2: a.x, y2: a.y + 25,
@@ -378,7 +472,6 @@ function buildSteps() {
     remove: []
   });
 
-  // 3. Точки A и a
   steps.push({
     add: [
       { id: 'a_dot', type: 'dot', x: a.x, y: a.y, r: DOT_R, color: T_color },
@@ -387,14 +480,12 @@ function buildSteps() {
     remove: []
   });
 
-  // 4. Толстое переднее ребро aA
   steps.push({
     add: [{ id: 'aA', type: 'line', x1: a.x, y1: a.y, x2: A.x, y2: A.y,
             width: 3.2, color: T_color, thin: false }],
     remove: []
   });
 
-  // 5. Укорачиваем вертикаль
   steps.push({
     add: [{ id: 'vaxis_short', type: 'line',
             x1: a.x, y1: a.y, x2: A.x, y2: A.y,
@@ -403,7 +494,6 @@ function buildSteps() {
     remove: ['vaxis_long']
   });
 
-  // 6. a → VPL
   steps.push({
     add: [
       { id: 'a_vpl', type: 'line', x1: a.x, y1: a.y, x2: vpl.x, y2: vy,
@@ -418,7 +508,6 @@ function buildSteps() {
     remove: []
   });
 
-  // 7. A → VPL
   steps.push({
     add: [{ id: 'A_vpl', type: 'line', x1: A.x, y1: A.y, x2: vpl.x, y2: vy,
             width: THIN, color: '#888', thin: true,
@@ -426,7 +515,6 @@ function buildSteps() {
     remove: []
   });
 
-  // 8. a → VPR
   steps.push({
     add: [
       { id: 'a_vpr', type: 'line', x1: a.x, y1: a.y, x2: vpr.x, y2: vy,
@@ -441,7 +529,6 @@ function buildSteps() {
     remove: []
   });
 
-  // 9. A → VPR
   steps.push({
     add: [{ id: 'A_vpr', type: 'line', x1: A.x, y1: A.y, x2: vpr.x, y2: vy,
             width: THIN, color: '#888', thin: true,
@@ -449,13 +536,11 @@ function buildSteps() {
     remove: []
   });
 
-  // 10. Точка b
   steps.push({
     add: [{ id: 'b_dot', type: 'dot', x: b.x, y: b.y, r: DOT_R, color: T_color }],
     remove: []
   });
 
-  // 11. Вертикаль b → B
   steps.push({
     add: [{ id: 'bB_guide', type: 'line',
             x1: b.x, y1: b.y, x2: B.x, y2: B.y,
@@ -464,13 +549,11 @@ function buildSteps() {
     remove: []
   });
 
-  // 12. Точка B
   steps.push({
     add: [{ id: 'B_dot', type: 'dot', x: B.x, y: B.y, r: DOT_R, color: T_color }],
     remove: []
   });
 
-  // 13. B → VPR
   steps.push({
     add: [{ id: 'B_vpr', type: 'line', x1: B.x, y1: B.y, x2: vpr.x, y2: vy,
             width: THIN, color: '#888', thin: true,
@@ -478,7 +561,6 @@ function buildSteps() {
     remove: []
   });
 
-  // 14. b → VPR
   steps.push({
     add: [{ id: 'b_vpr', type: 'line', x1: b.x, y1: b.y, x2: vpr.x, y2: vy,
             width: THIN, color: '#888', thin: true,
@@ -486,13 +568,11 @@ function buildSteps() {
     remove: []
   });
 
-  // 15. Точка c
   steps.push({
     add: [{ id: 'c_dot', type: 'dot', x: c.x, y: c.y, r: DOT_R, color: T_color }],
     remove: []
   });
 
-  // 16. Вертикаль c → C
   steps.push({
     add: [{ id: 'cC_guide', type: 'line',
             x1: c.x, y1: c.y, x2: C.x, y2: C.y,
@@ -501,13 +581,11 @@ function buildSteps() {
     remove: []
   });
 
-  // 17. Точка C
   steps.push({
     add: [{ id: 'C_dot', type: 'dot', x: C.x, y: C.y, r: DOT_R, color: T_color }],
     remove: []
   });
 
-  // 18. C → VPL
   steps.push({
     add: [{ id: 'C_vpl', type: 'line', x1: C.x, y1: C.y, x2: vpl.x, y2: vy,
             width: THIN, color: '#888', thin: true,
@@ -515,7 +593,6 @@ function buildSteps() {
     remove: []
   });
 
-  // 19. c → VPL
   steps.push({
     add: [{ id: 'c_vpl', type: 'line', x1: c.x, y1: c.y, x2: vpl.x, y2: vy,
             width: THIN, color: '#888', thin: true,
@@ -523,13 +600,11 @@ function buildSteps() {
     remove: []
   });
 
-  // 20. Точка D
   steps.push({
     add: [{ id: 'D_dot', type: 'dot', x: D.x, y: D.y, r: DOT_R, color: T_color }],
     remove: []
   });
 
-  // 21. Задние (невидимые) рёбра — тонкие
   steps.push({
     add: [
       { id: 'd_dot', type: 'dot', x: d.x, y: d.y, r: DOT_R, color: T_color },
@@ -546,7 +621,6 @@ function buildSteps() {
     remove: []
   });
 
-  // 22. Обводка видимых рёбер
   steps.push({
     add: [
       { id: 'ab', type: 'line', x1: a.x, y1: a.y, x2: b.x, y2: b.y,
@@ -569,7 +643,6 @@ function buildSteps() {
     remove: []
   });
 
-  // 23. Обводка задних рёбер толстыми линиями (чуть тоньше основных)
   steps.push({
     add: [
       { id: 'dD_bold', type: 'line', x1: d.x, y1: d.y, x2: D.x, y2: D.y,
@@ -582,8 +655,6 @@ function buildSteps() {
     remove: []
   });
 
-  // 24. Финальный шаг: рисуем толстые задние поверх тонких.
-  // ВАЖНО: remove пуст — тонкие (2.2) остаются, но полностью перекрыты 3.2.
   steps.push({
     add: [
       { id: 'dD_final', type: 'line', x1: d.x, y1: d.y, x2: D.x, y2: D.y,
@@ -601,9 +672,6 @@ function buildSteps() {
   if (animSlider) animSlider.max = steps.length;
 }
 
-// ============================================================
-// Рисование
-// ============================================================
 function drawItem(def, globalProgress) {
   if (globalProgress <= 0) return;
   const tStart = def.tStart !== undefined ? def.tStart : 0;
@@ -621,26 +689,15 @@ function drawItem(def, globalProgress) {
 
 function drawLine(def, progress) {
   let x1 = def.x1, y1 = def.y1, x2 = def.x2, y2 = def.y2;
-
-  const dx = x2 - x1;
-  const dy = y2 - y1;
+  const dx = x2 - x1, dy = y2 - y1;
   const len = Math.hypot(dx, dy);
   if (len > 0.01) {
-    const ux = dx / len;
-    const uy = dy / len;
-    if (def.extendStart) {
-      x1 -= ux * def.extendStart;
-      y1 -= uy * def.extendStart;
-    }
-    if (def.extendEnd) {
-      x2 += ux * def.extendEnd;
-      y2 += uy * def.extendEnd;
-    }
+    const ux = dx / len, uy = dy / len;
+    if (def.extendStart) { x1 -= ux * def.extendStart; y1 -= uy * def.extendStart; }
+    if (def.extendEnd)   { x2 += ux * def.extendEnd;   y2 += uy * def.extendEnd;   }
   }
-
   const ex = x1 + (x2 - x1) * progress;
   const ey = y1 + (y2 - y1) * progress;
-
   ctx.strokeStyle = def.color;
   ctx.lineWidth = def.width * lineMultiplier;
   ctx.lineCap = 'round';
@@ -671,31 +728,39 @@ function drawText(def, progress) {
   ctx.restore();
 }
 
+// Полупрозрачная фоновая надпись под чертежом
+function drawBackgroundHint() {
+  ctx.save();
+  ctx.globalAlpha = 0.16;
+  ctx.fillStyle = '#5a5040';
+  const fs = Math.max(16, Math.min(W, H) * 0.045);
+  ctx.font = `italic ${fs}px Georgia, 'Times New Roman', serif`;
+  ctx.textAlign = 'center';
+  ctx.textBaseline = 'middle';
+  ctx.fillText('↻  Расположите телефон горизонтально', W / 2, H * 0.85);
+  ctx.restore();
+}
+
 function draw() {
   ctx.clearRect(0, 0, W, H);
-  // Сортируем элементы: сначала все линии построения, потом толстые обводки
-  // Это гарантирует, что толстые линии всегда рисуются ПОВЕРХ тонких.
+  // Фоновая надпись рисуется ПЕРВОЙ — она "под" чертежом
+  drawBackgroundHint();
+
   const ids = Object.keys(state);
   ids.sort((a, b) => {
     const wa = state[a].def.width || 0;
     const wb = state[b].def.width || 0;
-    // Тонкие (width < 1.5) — сначала, толстые — потом
     const aThick = wa >= 1.5;
     const bThick = wb >= 1.5;
     if (aThick !== bThick) return aThick ? 1 : -1;
-    // Среди толстых — сначала 2.2, потом 3.2
     return wa - wb;
   });
-
   for (const id of ids) {
     const { def, progress } = state[id];
     if (progress > 0) drawItem(def, progress);
   }
 }
 
-// ============================================================
-// Состояние и переходы
-// ============================================================
 function rebuildState() {
   state = {};
   for (let i = 0; i < currentStep; i++) {
@@ -755,9 +820,6 @@ function updateUI() {
   if (animSlider) animSlider.value = currentStep;
 }
 
-// ============================================================
-// Анимация
-// ============================================================
 function animate() {
   if (anim) {
     const t = Math.min(1, (performance.now() - anim.startTime) / anim.duration);
@@ -778,18 +840,154 @@ function animate() {
     }
   }
   draw();
+  if (document.body.classList.contains('settings-open')) {
+    updateHandlePositions();
+  }
   requestAnimationFrame(animate);
 }
 
-// ============================================================
-// Настройки
-// ============================================================
+function updateHandlePositions() {
+  document.getElementById('handle-vpl').style.left = vplX + 'px';
+  document.getElementById('handle-vpl').style.top  = vy + 'px';
+
+  document.getElementById('handle-vpr').style.left = vprX + 'px';
+  document.getElementById('handle-vpr').style.top  = vy + 'px';
+
+  const center = getCubeScreenCenter();
+  document.getElementById('handle-cube').style.left = center.x + 'px';
+  document.getElementById('handle-cube').style.top  = center.y + 'px';
+
+  const horizonHandleX = (vplX + vprX) / 2;
+  document.getElementById('handle-horizon').style.left = horizonHandleX + 'px';
+  document.getElementById('handle-horizon').style.top  = vy + 'px';
+}
+
+function updateAll() {
+  if (anim) {
+    for (const id in state) {
+      if (state[id].removing) delete state[id];
+      else if (state[id].adding) {
+        state[id].progress = 1;
+        state[id].adding = false;
+      }
+    }
+    anim = null;
+  }
+  updateGeometryFromState();
+  buildSteps();
+  rebuildState();
+  updateUI();
+  updateHandlePositions();
+  draw();
+}
+
+function applyVPChange(newVplX, newVprX) {
+  const oldCenter = getCubeScreenCenter();
+  vplX = newVplX;
+  vprX = newVprX;
+  const newK = computeKtheta().k;
+  if (newK > 0 && isFinite(newK)) {
+    cubeWX = (oldCenter.x - camX) * CAM_DIST / newK;
+    cubeWY = CAM_HEIGHT - cubeSize / 2 + (vy - oldCenter.y) * CAM_DIST / newK;
+  }
+}
+
 window.toggleSettings = function () {
   document.body.classList.toggle('settings-open');
   if (document.body.classList.contains('settings-open')) {
     document.getElementById('thickness-slider').value = lineMultiplier;
+    document.getElementById('cube-size-slider').value = cubeSizeMultiplier;
+    updateHandlePositions();
   }
 };
+
+function setupHandleDrag(id, onMove) {
+  const el = document.getElementById(id);
+  let dragging = false;
+  let lastX = 0, lastY = 0;
+
+  el.addEventListener('pointerdown', (e) => {
+    e.preventDefault();
+    e.stopPropagation();
+    dragging = true;
+    lastX = e.clientX;
+    lastY = e.clientY;
+    try { el.setPointerCapture(e.pointerId); } catch (err) {}
+  });
+
+  el.addEventListener('pointermove', (e) => {
+    if (!dragging) return;
+    e.preventDefault();
+    const dx = e.clientX - lastX;
+    const dy = e.clientY - lastY;
+    lastX = e.clientX;
+    lastY = e.clientY;
+    onMove(dx, dy);
+  });
+
+  const end = (e) => {
+    if (!dragging) return;
+    dragging = false;
+    try { el.releasePointerCapture(e.pointerId); } catch (err) {}
+  };
+  el.addEventListener('pointerup', end);
+  el.addEventListener('pointercancel', end);
+  el.addEventListener('lostpointercapture', end);
+}
+
+setupHandleDrag('handle-vpl', (dx) => {
+  const newVplX = Math.max(VP_MARGIN, Math.min(camX - MIN_GAP, vplX + dx));
+  if (newVplX !== vplX) {
+    applyVPChange(newVplX, vprX);
+    updateAll();
+  }
+});
+
+setupHandleDrag('handle-vpr', (dx) => {
+  const newVprX = Math.max(camX + MIN_GAP, Math.min(W - VP_MARGIN, vprX + dx));
+  if (newVprX !== vprX) {
+    applyVPChange(vplX, newVprX);
+    updateAll();
+  }
+});
+
+setupHandleDrag('handle-cube', (dx, dy) => {
+  const { k } = computeKtheta();
+  if (k > 0) {
+    cubeWX += dx * CAM_DIST / k;
+    cubeWY -= dy * CAM_DIST / k;
+    updateAll();
+  }
+});
+
+setupHandleDrag('handle-horizon', (dx, dy) => {
+  let changed = false;
+
+  if (Math.abs(dy) > 0.5) {
+    const oldCenterY = getCubeScreenCenter().y;
+    const newVy = Math.max(H_MARGIN, Math.min(H - H_MARGIN, vy + dy));
+    if (newVy !== vy) {
+      vy = newVy;
+      const { k } = computeKtheta();
+      if (k > 0) {
+        cubeWY = CAM_HEIGHT - cubeSize / 2 + (vy - oldCenterY) * CAM_DIST / k;
+      }
+      changed = true;
+    }
+  }
+
+  if (Math.abs(dx) > 0.5) {
+    const lo = Math.max(VP_MARGIN - vplX, camX + MIN_GAP - vprX);
+    const hi = Math.min(camX - MIN_GAP - vplX, W - VP_MARGIN - vprX);
+    const ddx = Math.max(lo, Math.min(hi, dx));
+    if (ddx !== 0) {
+      applyVPChange(vplX + ddx, vprX + ddx);
+      changed = true;
+    }
+  }
+
+  if (changed) updateAll();
+});
 
 document.getElementById('forward').addEventListener('click', goForward);
 document.getElementById('back').addEventListener('click', goBack);
@@ -804,28 +1002,41 @@ document.getElementById('anim-slider').addEventListener('input', (e) => {
   jumpToStep(parseInt(e.target.value));
 });
 
-// ============================================================
-// Ресайз
-// ============================================================
+document.getElementById('cube-size-slider').addEventListener('input', (e) => {
+  cubeSizeMultiplier = parseFloat(e.target.value);
+  const oldSize = cubeSize;
+  cubeSize = Math.min(baseCubeSize * cubeSizeMultiplier, CAM_DIST * 0.8);
+  cubeWY += (oldSize - cubeSize) / 2;
+  updateAll();
+});
+
 let resizeTimer = null;
 window.addEventListener('resize', () => {
   clearTimeout(resizeTimer);
   resizeTimer = setTimeout(() => {
-    initGeometry();
-    buildSteps();
-    rebuildState();
-    updateUI();
-    draw();
+    const oldW = W, oldH = H;
+    setupCanvas();
+
+    const sx = W / oldW;
+    const sy = H / oldH;
+    vplX *= sx;
+    vprX *= sx;
+    vy   *= sy;
+
+    vplX = Math.max(VP_MARGIN, Math.min(camX - MIN_GAP, vplX));
+    vprX = Math.max(camX + MIN_GAP, Math.min(W - VP_MARGIN, vprX));
+    vy   = Math.max(H_MARGIN,  Math.min(H - H_MARGIN, vy));
+
+    updateAll();
   }, 150);
 });
 
-// ============================================================
-// Запуск
-// ============================================================
-initGeometry();
+initScene();
+updateGeometryFromState();
 buildSteps();
 rebuildState();
 updateUI();
+updateHandlePositions();
 draw();
 animate();
 </script>
