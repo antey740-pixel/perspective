@@ -366,6 +366,18 @@ function getCubeScreenCenter() {
   };
 }
 
+// Не даёт зелёной ручке (и центру куба) уйти за край экрана
+function clampCubeToScreen() {
+  const { k } = computeKtheta();
+  if (k <= 0 || !isFinite(k)) return;
+  const sc = getCubeScreenCenter();
+  const m = Math.max(VP_MARGIN, 40);
+  const cx = Math.max(m, Math.min(W - m, sc.x));
+  const cy = Math.max(m, Math.min(H - m, sc.y));
+  if (cx !== sc.x) cubeWX += (cx - sc.x) * CAM_DIST / k;
+  if (cy !== sc.y) cubeWY += (sc.y - cy) * CAM_DIST / k;
+}
+
 function updateGeometryFromState() {
   const { k, theta } = computeKtheta();
   const cosR = Math.cos(theta);
@@ -728,7 +740,6 @@ function drawText(def, progress) {
   ctx.restore();
 }
 
-// Полупрозрачная фоновая надпись под чертежом
 function drawBackgroundHint() {
   ctx.save();
   ctx.globalAlpha = 0.16;
@@ -743,7 +754,6 @@ function drawBackgroundHint() {
 
 function draw() {
   ctx.clearRect(0, 0, W, H);
-  // Фоновая надпись рисуется ПЕРВОЙ — она "под" чертежом
   drawBackgroundHint();
 
   const ids = Object.keys(state);
@@ -890,6 +900,8 @@ function applyVPChange(newVplX, newVprX) {
     cubeWX = (oldCenter.x - camX) * CAM_DIST / newK;
     cubeWY = CAM_HEIGHT - cubeSize / 2 + (vy - oldCenter.y) * CAM_DIST / newK;
   }
+  // На случай, если куб был у самого края — не даём VPs его вытолкнуть
+  clampCubeToScreen();
 }
 
 window.toggleSettings = function () {
@@ -951,11 +963,14 @@ setupHandleDrag('handle-vpr', (dx) => {
   }
 });
 
+// Куб — единственная ручка, которая двигает куб по экрану.
+// После каждого шага clampCubeToScreen не даёт ей уйти за край.
 setupHandleDrag('handle-cube', (dx, dy) => {
   const { k } = computeKtheta();
   if (k > 0) {
     cubeWX += dx * CAM_DIST / k;
     cubeWY -= dy * CAM_DIST / k;
+    clampCubeToScreen();
     updateAll();
   }
 });
@@ -1027,6 +1042,7 @@ window.addEventListener('resize', () => {
     vprX = Math.max(camX + MIN_GAP, Math.min(W - VP_MARGIN, vprX));
     vy   = Math.max(H_MARGIN,  Math.min(H - H_MARGIN, vy));
 
+    clampCubeToScreen();
     updateAll();
   }, 150);
 });
